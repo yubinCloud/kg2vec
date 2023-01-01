@@ -19,7 +19,10 @@ sh transe.sh
 
 + Notice: Before you run this script, you should download the dataset, such as FB15k, and modify the script for choosing the path of dataset and checkpoints.
 
+The example `./transe.ipynb` is a good tutorial for reproduce the TransE if you want to know the structure of this repo. This tutorial can be run without any dependencies, except for the use of common third-party libraries like PyTorch and Numpy.
+
 ## Plan
 
 [+] [TransE](http://dl.acm.org/doi/10.5555/2999792.2999923)
+
 [] [TransH](https://www.researchgate.net/publication/319207032_Knowledge_Graph_Embedding_by_Translating_on_Hyperplanes)
