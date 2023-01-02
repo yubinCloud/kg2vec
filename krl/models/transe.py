@@ -3,10 +3,10 @@ import torch
 import torch.nn as nn
 
 from base_model import KRLModel
-from config import HyperParam
+from config import TransHyperParam
 
 
-class TransEHyperParam(HyperParam):
+class TransEHyperParam(TransHyperParam):
     """Hyper-paramters of TransE
     """
     pass

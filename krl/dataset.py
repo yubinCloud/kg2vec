@@ -5,7 +5,7 @@ The dataset class used to read KRL data, such as FB15k
 from typing import Literal, Tuple, Dict, List
 from torch.utils.data import Dataset, DataLoader
 
-from config import DatasetConf, HyperParam
+from config import DatasetConf
 
 
 EntityMapping = Dict[str, int]
