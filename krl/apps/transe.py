@@ -65,8 +65,7 @@ def train_transe(
     valid_dataloder = DataLoader(valid_dataset, hyper_params.valid_batch_size)
     
     # create negative-sampler
-    train_neg_sampler = RandomNegativeSampler(train_dataset, device)
-    valid_neg_sampler = RandomNegativeSampler(valid_dataset, device)
+    neg_sampler = RandomNegativeSampler(train_dataset, device)
 
     # create model
     model = TransE(ent_num, rel_num, device, norm, embed_dim, margin)
@@ -86,8 +85,8 @@ def train_transe(
         device=device,
         train_dataloder=train_dataloder,
         valid_dataloder=valid_dataloder,
-        train_neg_sampler=train_neg_sampler,
-        valid_neg_sampler=valid_neg_sampler,
+        train_neg_sampler=neg_sampler,
+        valid_neg_sampler=neg_sampler,
         optimzer=optimzer
     )
     

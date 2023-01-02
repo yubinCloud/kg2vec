@@ -1,0 +1,16 @@
+#!/bin/bash
+
+cd ../krl
+python app.py TransH train --dataset-name "FB15k"\
+    --base-dir /root/yubin/dataset/KRL/master/FB15k \
+    --batch-size 4800 \
+    --valid-batch-size 64 \
+    --valid-freq 5 \
+    --lr 0.001 \
+    --epoch-size 500 \
+    --embed-dim 100 \
+    --norm 1 \
+    --margin 2.0 \
+    --c 1.0 \
+    --ckpt-path /root/sharespace/yubin/papers/KRL/scratch/TransX/tmp/transh_fb15k.ckpt \
+    --metric-result-path /root/sharespace/yubin/papers/KRL/scratch/TransX/tmp/transh_fb15k_metrics.txt

@@ -40,6 +40,7 @@ class TransE(KRLModel):
         #uniform_range = 6 / np.sqrt(self.embed_dim)
         #self.rel_embedding.weight.data.uniform_(-uniform_range, uniform_range)
 
+        self.dist_fn = nn.PairwiseDistance(p=self.norm) # the function for calculating the distance 
         self.criterion = nn.MarginRankingLoss(margin=self.margin)
     
     def _distance(self, triples):
@@ -54,11 +55,10 @@ class TransE(KRLModel):
         h_embs = self.ent_embedding(heads)  # h_embs: [batch, embed_dim]
         r_embs = self.rel_embedding(rels)
         t_embs = self.ent_embedding(tails)
-        dist = h_embs + r_embs - t_embs  # [batch, embed_dim]
-        return torch.norm(dist, p=self.norm, dim=1)
+        return self.dist_fn(h_embs + r_embs, t_embs)
         
     def loss(self, pos_distances, neg_distances):
-        """计算 TransE 训练的损失
+        """Calculate the loss
 
         :param pos_distances: [batch, ]
         :param neg_distances: [batch, ]
