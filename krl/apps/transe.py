@@ -52,12 +52,30 @@ def train_transe(
         margin=margin,
         valid_freq=valid_freq
     )
+    # create mapping
     entity2id, rel2id = create_mapping(dataset_conf)
     device = get_device()
     ent_num = len(entity2id)
     rel_num = len(rel2id)
+    
+    # create dataset and dataloader
+    train_dataset = KRLDataset(dataset_conf, 'train', entity2id, rel2id)
+    train_dataloder = DataLoader(train_dataset, hyper_params.batch_size)
+    valid_dataset = KRLDataset(dataset_conf, 'valid', entity2id, rel2id)
+    valid_dataloder = DataLoader(valid_dataset, hyper_params.valid_batch_size)
+    
+    # create negative-sampler
+    train_neg_sampler = RandomNegativeSampler(train_dataset, device)
+    valid_neg_sampler = RandomNegativeSampler(valid_dataset, device)
+
+    # create model
     model = TransE(ent_num, rel_num, device, norm, embed_dim, margin)
     model = model.to(device)
+    
+    # create optimizer
+    optimzer = torch.optim.Adam(model.parameters(), lr=hyper_params.learning_rate)
+    
+    # create trainer
     trainer = KRLTrainer(
         model=model,
         train_conf=train_conf,
@@ -66,8 +84,11 @@ def train_transe(
         entity2id=entity2id,
         rel2id=rel2id,
         device=device,
-        neg_sampler_class=RandomNegativeSampler,
-        optimzer=torch.optim.Adam(model.parameters(), lr=hyper_params.learning_rate)
+        train_dataloder=train_dataloder,
+        valid_dataloder=valid_dataloder,
+        train_neg_sampler=train_neg_sampler,
+        valid_neg_sampler=valid_neg_sampler,
+        optimzer=optimzer
     )
     
     # training process

@@ -5,6 +5,7 @@ from typing import Mapping
 import torch
 from torch.utils.data import DataLoader
 from typing import Tuple
+from rich.progress import track
 
 from dataset import KRLDataset
 from base_model import KRLModel
@@ -22,7 +23,10 @@ class KRLTrainer:
                  entity2id: Mapping[str ,int],
                  rel2id: Mapping[str, int],
                  device: torch.device,
-                 neg_sampler_class: type,
+                 train_dataloder: DataLoader,
+                 valid_dataloder: DataLoader,
+                 train_neg_sampler: NegativeSampler,
+                 valid_neg_sampler: NegativeSampler,
                  optimzer: torch.optim.Optimizer
                 ) -> None:
        self.model = model
@@ -32,7 +36,10 @@ class KRLTrainer:
        self.entity2id = entity2id
        self.rel2id = rel2id
        self.device = device
-       self.neg_sampler_class = neg_sampler_class
+       self.train_dataloder = train_dataloder
+       self.valid_dataloder = valid_dataloder
+       self.train_neg_sampler = train_neg_sampler
+       self.valid_neg_sampler = valid_neg_sampler
        self.optimzer = optimzer
     
     def run_inference(self,
@@ -100,32 +107,22 @@ class KRLTrainer:
         device = self.device
         optimzer = self.optimzer
         model = self.model
-        # prepare the dataset
-        train_dataset = KRLDataset(self.dataset_conf, 'train', self.entity2id, self.rel2id)
-        valid_dataset = KRLDataset(self.dataset_conf, 'valid', self.entity2id, self.rel2id)
-        # dataset -> dataloader
-        train_dataloder = DataLoader(train_dataset, self.params.batch_size)
-        valid_dataloder = DataLoader(valid_dataset, self.params.valid_batch_size)
-        # negative sampler
-        LocalNegSampler = self.neg_sampler_class
-        train_neg_sampler = LocalNegSampler(train_dataset, self.device)
-        valid_neg_sampler = LocalNegSampler(valid_dataset, self.device)
         # prepare the tools for tarining
         min_valid_loss = 1000.0
         best_score = 0.0
         # training loop
-        for epoch_id in range(1, self.params.epoch_size + 1):
+        for epoch_id in track(range(1, self.params.epoch_size + 1), description='Total...'):
             print("Starting epoch: ", epoch_id)
             loss_sum = 0
             model.train()
-            for i, batch in enumerate(train_dataloder):
+            for i, batch in enumerate(self.train_dataloder):
                 # get a batch of training data
                 pos_heads, pos_rels, pos_tails = batch[0].to(device), batch[1].to(device), batch[2].to(device)
                 pos_triples = torch.stack([pos_heads, pos_rels, pos_tails], dim=1)  # pos_triples: [batch_size, 3]
-                neg_triples = train_neg_sampler.neg_sample(pos_heads, pos_rels, pos_tails)  # neg_triples: [batch_size, 3]
+                neg_triples = self.train_neg_sampler.neg_sample(pos_heads, pos_rels, pos_tails)  # neg_triples: [batch_size, 3]
                 optimzer.zero_grad()
                 # calculte loss
-                loss, pos_dist, neg_dist = model(pos_triples, neg_triples)
+                loss, _, _ = model(pos_triples, neg_triples)
                 loss.backward()
                 loss_sum += loss.cpu().item()
                 # update model
@@ -134,8 +131,8 @@ class KRLTrainer:
             if epoch_id % self.params.valid_freq == 0:
                 model.eval()
                 with torch.no_grad():
-                    ent_num = len(valid_dataset.entity2id)
-                    _, _, hits_at_10, _ = self.run_inference(valid_dataloder, ent_num)
+                    ent_num = len(self.entity2id)
+                    _, _, hits_at_10, _ = self.run_inference(self.valid_dataloder, ent_num)
                     if hits_at_10 > best_score:
                         best_score = hits_at_10
                         print('best score of valid: ', best_score)

@@ -3,9 +3,9 @@ The dataset class used to read KRL data, such as FB15k
 """
 
 from typing import Literal, Tuple, Dict, List
-from torch.utils.data import Dataset
+from torch.utils.data import Dataset, DataLoader
 
-from config import DatasetConf
+from config import DatasetConf, HyperParam
 
 
 EntityMapping = Dict[str, int]
@@ -78,3 +78,4 @@ class KRLDataset(Dataset):
         """Returns (head id, relation id, tail id)."""
         triple = self.triples[index]
         return triple[0], triple[1], triple[2]
+    
