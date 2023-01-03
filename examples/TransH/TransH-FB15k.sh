@@ -1,6 +1,7 @@
 #!/bin/bash
 
-cd ../krl
+cd ..  # /examples/
+cd ../krl  # /krl
 python app.py TransH train --dataset-name "FB15k"\
     --base-dir /root/yubin/dataset/KRL/master/FB15k \
     --batch-size 4800 \

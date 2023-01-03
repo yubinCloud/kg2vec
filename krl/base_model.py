@@ -12,20 +12,14 @@ class KRLModel(nn.Module, ABC):
         super().__init__()
     
     @abstractclassmethod
-    def loss(self, pos_distances, neg_distances) -> torch.Tensor:
+    def loss(self) -> torch.Tensor:
         """计算模型的损失
-
-        :param pos_distances: _description_
-        :param neg_distances: _description_
         """
         pass
     
     @abstractclassmethod
-    def forward(self, pos_triples: torch.Tensor, neg_triples: torch.Tensor):
+    def forward(self):
         """Return model losses based on the input.
-
-        :param pos_triples: _description_
-        :param neg_triples: _description_
         """
         pass
     

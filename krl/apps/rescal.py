@@ -1,12 +1,13 @@
-import typer
-from pathlib import Path
 import torch
+import torch.nn as nn
 from torch.utils.data import DataLoader
+from pathlib import Path
+import typer
 
 from config import DatasetConf, TrainConf
-from models.transe import TransE, TransEHyperParam
+from models.rescal import RESCAL, RescalHyperParam
 from dataset import create_mapping, KRLDataset
-from trainer import TransETrainer
+from trainer import RescalTrainer
 from negative_sampler import RandomNegativeSampler
 import storage
 
@@ -16,21 +17,21 @@ def get_device() -> torch.device:
 
 app = typer.Typer()
 
+
 @app.command(name='train')
-def train_transe(
-        dataset_name: str = typer.Option(...),
-        base_dir: Path = typer.Option(...),
-        batch_size: int = typer.Option(...),
-        valid_batch_size: int = typer.Option(...),
-        valid_freq: int = typer.Option(...),
-        lr: float = typer.Option(...),
-        epoch_size: int = typer.Option(...),
-        embed_dim: int = typer.Option(...),
-        norm: int = typer.Option(...),
-        margin: float = typer.Option(...),
-        ckpt_path: Path = typer.Option(...),
-        metric_result_path: Path = typer.Option(...)
-    ):
+def train_rescal(
+    dataset_name: str = typer.Option(...),
+    base_dir: Path = typer.Option(...),
+    batch_size: int = typer.Option(...),
+    valid_batch_size: int = typer.Option(...),
+    valid_freq: int = typer.Option(...),
+    lr: float = typer.Option(...),
+    epoch_size: int = typer.Option(...),
+    embed_dim: int = typer.Option(...),
+    alpha: float = typer.Option(0.001, help='regularization parameter'),
+    ckpt_path: Path = typer.Option(...),
+    metric_result_path: Path = typer.Option(...)
+):
     if not base_dir.exists():
         print("base_dir doesn't exists.")
         raise typer.Exit()
@@ -42,15 +43,14 @@ def train_transe(
         checkpoint_path=ckpt_path.absolute().as_posix(),
         metric_result_path=metric_result_path.absolute().as_posix()
     )
-    hyper_params = TransEHyperParam(
+    hyper_params = RescalHyperParam(
         batch_size=batch_size,
         valid_batch_size=valid_batch_size,
         learning_rate=lr,
         epoch_size=epoch_size,
         embed_dim=embed_dim,
-        norm=norm,
-        margin=margin,
-        valid_freq=valid_freq
+        valid_freq=valid_freq,
+        alpha=alpha
     )
     # create mapping
     entity2id, rel2id = create_mapping(dataset_conf)
@@ -66,16 +66,16 @@ def train_transe(
     
     # create negative-sampler
     neg_sampler = RandomNegativeSampler(train_dataset, device)
-
+    
     # create model
-    model = TransE(ent_num, rel_num, device, norm, embed_dim, margin)
+    model = RESCAL(ent_num, rel_num, device, embed_dim, alpha)
     model = model.to(device)
     
     # create optimizer
     optimizer = torch.optim.Adam(model.parameters(), lr=hyper_params.learning_rate)
     
     # create trainer
-    trainer = TransETrainer(
+    trainer = RescalTrainer(
         model=model,
         train_conf=train_conf,
         params=hyper_params,

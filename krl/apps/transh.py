@@ -7,7 +7,7 @@ from config import DatasetConf, TrainConf
 from models.transh import TransHHyperParam, TransH
 from dataset import create_mapping, KRLDataset
 from negative_sampler import TphAndHptNegativeSampler
-from trainer import KRLTrainer
+from trainer import TransETrainer
 import storage
 
 
@@ -82,7 +82,7 @@ def train_tranh(
     optimizer = torch.optim.Adam(model.parameters(), lr=hyper_params.learning_rate)
     
     # create trainer
-    trainer = KRLTrainer(
+    trainer = TransETrainer(
         model=model,
         train_conf=train_conf,
         params=hyper_params,

@@ -6,15 +6,17 @@ import torch
 from torch.utils.data import DataLoader
 from typing import Tuple
 from rich.progress import track
+from abc import ABC, abstractclassmethod
 
-from dataset import KRLDataset
 from base_model import KRLModel
 from config import TrainConf, HyperParam, DatasetConf
 from negative_sampler import NegativeSampler
 import metric, storage
 
 
-class KRLTrainer:
+
+
+class KRLTrainer(ABC):
     def __init__(self,
                  model: KRLModel,
                  train_conf: TrainConf,
@@ -97,9 +99,41 @@ class KRLTrainer:
         
         return hits_at_1_score, hits_at_3_score, hits_at_10_score, mrr_score
     
+    @abstractclassmethod
     def run_training(self):
         """
         Run the training process on the KRL model.
+        
+        Rewrite this function if you need more logic for the training model.
+        The implementation here just provides an example of training TransE.
+        """
+        pass
+
+
+class TransETrainer(KRLTrainer):
+    """
+    Trainer for training TransE and other similar models.
+    """
+    def __init__(
+        self,
+        model: KRLModel,
+        train_conf: TrainConf,
+        params: HyperParam,
+        dataset_conf: DatasetConf,
+        entity2id: Mapping[str, int],
+        rel2id: Mapping[str, int],
+        device: torch.device,
+        train_dataloder: DataLoader,
+        valid_dataloder: DataLoader,
+        train_neg_sampler: NegativeSampler,
+        valid_neg_sampler: NegativeSampler,
+        optimzer: torch.optim.Optimizer
+    ) -> None:
+        super().__init__(model, train_conf, params, dataset_conf, entity2id, rel2id, device, train_dataloder, valid_dataloder, train_neg_sampler, valid_neg_sampler, optimzer)
+    
+    def run_training(self):
+        """
+        Run the training process on the TransE model and other similar models, for example, TransH.
         
         Rewrite this function if you need more logic for the training model.
         The implementation here just provides an example of training TransE.
@@ -108,7 +142,6 @@ class KRLTrainer:
         optimzer = self.optimzer
         model = self.model
         # prepare the tools for tarining
-        min_valid_loss = 1000.0
         best_score = 0.0
         # training loop
         for epoch_id in track(range(1, self.params.epoch_size + 1), description='Total...'):
@@ -123,6 +156,55 @@ class KRLTrainer:
                 optimzer.zero_grad()
                 # calculte loss
                 loss, _, _ = model(pos_triples, neg_triples)
+                loss.backward()
+                loss_sum += loss.cpu().item()
+                # update model
+                optimzer.step()
+            
+            if epoch_id % self.params.valid_freq == 0:
+                model.eval()
+                with torch.no_grad():
+                    ent_num = len(self.entity2id)
+                    _, _, hits_at_10, _ = self.run_inference(self.valid_dataloder, ent_num)
+                    if hits_at_10 > best_score:
+                        best_score = hits_at_10
+                        print('best score of valid: ', best_score)
+                        storage.save_checkpoint(model, optimzer, epoch_id, best_score, self.params, self.train_conf)
+
+
+class RescalTrainer(KRLTrainer):
+    """
+    Trainer for tarining RESCAL and other similar models.
+    """
+    def __init__(self, model: KRLModel, train_conf: TrainConf, params: HyperParam, dataset_conf: DatasetConf, entity2id: Mapping[str, int], rel2id: Mapping[str, int], device: torch.device, train_dataloder: DataLoader, valid_dataloder: DataLoader, train_neg_sampler: NegativeSampler, valid_neg_sampler: NegativeSampler, optimzer: torch.optim.Optimizer) -> None:
+        super().__init__(model, train_conf, params, dataset_conf, entity2id, rel2id, device, train_dataloder, valid_dataloder, train_neg_sampler, valid_neg_sampler, optimzer)
+    
+    def run_training(self):
+        device = self.device
+        optimzer = self.optimzer
+        model = self.model
+        # prepare tools for training
+        best_score = 0.0
+        # training loop
+        for epoch_id in track(range(1, self.params.epoch_size + 1), description='Total...'):
+            print("Starting epoch: ", epoch_id)
+            loss_sum = 0
+            model.train()
+            for batch in iter(self.train_dataloder):
+                pos_heads, pos_rels, pos_tails = batch[0].to(device), batch[1].to(device), batch[2].to(device)
+                pos_triples = torch.stack([pos_heads, pos_rels, pos_tails], dim=1)  # pos_triples: [batch_size, 3]
+                neg_triples = self.train_neg_sampler.neg_sample(pos_heads, pos_rels, pos_tails)  # neg_triples: [batch_size, 3]
+                triples = torch.cat([pos_triples, neg_triples])
+                pos_num = pos_triples.size(0)
+                total_num = triples.size(0)
+                labels = torch.zeros([total_num], device=device)
+                labels[0: pos_num] = 1  # the pos_triple label is equal to 1. 
+                shuffle_index = torch.randperm(total_num, device=device)  # index sequence for shuffling data
+                triples = triples[shuffle_index]
+                labels = labels[shuffle_index]
+                # calculate loss
+                optimzer.zero_grad()
+                loss, _ = model(triples, labels)
                 loss.backward()
                 loss_sum += loss.cpu().item()
                 # update model
