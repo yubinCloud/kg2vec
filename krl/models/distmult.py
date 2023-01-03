@@ -1,12 +1,9 @@
 """
 Reference:
 
-- https://yubincloud.github.io/notebook-paper/KG/KRL/1101.RESCAL-and-extensions.html
-- https://github.com/thunlp/OpenKE/blob/OpenKE-PyTorch/openke/module/model/RESCAL.py
-- https://github.com/nju-websoft/muKG/blob/main/src/torch/kge_models/RESCAL.py
+- https://github.com/Sujit-O/pykg2vec/blob/master/pykg2vec/models/pointwise.py
+- https://github.com/thunlp/OpenKE/blob/OpenKE-PyTorch/openke/module/model/DistMult.py
 """
-
-
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -17,22 +14,24 @@ from base_model import KRLModel
 from config import HyperParam
 
 
-class RescalHyperParam(HyperParam):
-    """Hyper-parameters of RESCAL
+class DistMultHyperParam(HyperParam):
+    """Hyper-parameters of DistMult
     """
     embed_dim: int
     alpha: float = Field(0.001, title='regularization parameter')
-    regul_type: Literal['F2', 'N3'] = Field('F2', title='regularization type')
+    regul_type: Literal['F2', 'N3']
 
 
-class RESCAL(KRLModel):
-    def __init__(self,
-                 ent_num: int,
-                 rel_num: int,
-                 device: torch.device,
-                 embed_dim: int = 100,
-                 alpha: float = 0.001,
-                 regul_type: Literal['F2', 'N3'] = 'F2'):
+class DistMult(KRLModel):
+    def __init__(
+        self,
+        ent_num: int,
+        rel_num: int,
+        device: torch.device,
+        embed_dim: int = 100,
+        alpha: float = 0.001,
+        regul_type: Literal['F2', 'N3'] = 'F2'
+    ):
         super().__init__()
         self.ent_num = ent_num
         self.rel_num = rel_num
@@ -44,19 +43,19 @@ class RESCAL(KRLModel):
         # initialize entity embedding
         self.ent_embedding = nn.Embedding(self.ent_num, self.embed_dim)
         nn.init.xavier_uniform_(self.ent_embedding.weight.data)
-        self.ent_embedding.weight.data = F.normalize(self.ent_embedding.weight.data, 2, 1)  # 在许多实现中，这一行可以去掉
         
         # initialize relation embedding
-        self.rel_embedding = nn.Embedding(self.rel_num, self.embed_dim * self.embed_dim)
+        self.rel_embedding = nn.Embedding(self.rel_num, self.embed_dim)
         nn.init.xavier_uniform_(self.rel_embedding.weight.data)
-        self.rel_embedding.weight.data = F.normalize(self.rel_embedding.weight.data, 2, 1)
-    
-        self.criterion = nn.MSELoss()
+        
+        self.criterion = nn.MSELoss()  # 当数据的 neg_sample label 为 0 时用这个       
+        # self.criterion = lambda preds, labels: F.softplus(preds * labels).mean()  # neg_sample label 为 -1 时用这个  
+
     
     def embed(self, triples):
-        """Get the embeddings of a batch of triples
+        """get the embedding of triples
 
-        :param triples: _description_
+        :param triples: [heads, rels, tails]
         """
         assert triples.shape[1] == 3
         # get entity ids and relation ids
@@ -64,29 +63,10 @@ class RESCAL(KRLModel):
         rels = triples[:, 1]
         tails = triples[:, 2]
         # id -> embedding
-        h_embs = self.ent_embedding(heads)    # [batch, emb]
+        h_embs = self.ent_embedding(heads)  # [batch, emb]
         t_embs = self.ent_embedding(tails)
-        r_embs = self.rel_embedding(rels)     # [batch, emb * emb]
+        r_embs = self.rel_embedding(rels)   # [batch, emb]
         return h_embs, r_embs, t_embs
-        
-    
-    def _scoring(self, h_embs, r_embs, t_embs):
-        """计算一个 batch 的三元组的 scores
-        score 越大越好，正例接近 1，负例接近 0
-        This score can also be regard as the `pred`
-        
-        :param h_embs: heads embedding，size: [batch, embed]
-        :param r_embs: rels embedding，size: [batch, embed * embed]
-        :return: size: [batch,]
-        """
-        # calcate scores
-        r_embs = r_embs.view(-1, self.embed_dim, self.embed_dim)  # [batch, emb, emb]
-        t_embs = t_embs.view(-1, self.embed_dim, 1)  # [batch, emb, 1]
-        
-        tr = torch.matmul(r_embs, t_embs)  # [batch, emb, 1]
-        tr = tr.view(-1, self.embed_dim)  # [batch, emb]
-        
-        return torch.sum(h_embs * tr, dim=1)
 
     def _get_reg(self, h_embs, r_embs, t_embs):
         """Calculate regularization term
@@ -101,6 +81,16 @@ class RESCAL(KRLModel):
         else:
             regul = torch.mean(torch.sum(h_embs ** 3, -1) + torch.sum(r_embs ** 3, -1) + torch.sum(t_embs ** 3, -1))
         return regul
+    
+    def _scoring(self, h_embs, r_embs, t_embs):
+        """计算一个 batch 的三元组的 scores
+        score 越大越好，正例接近 1，负例接近 0
+        This score can also be regard as the `pred`
+        
+        :param h_embs: embedding of a batch heads, size: [batch, emb]
+        :return: size: [batch,]
+        """
+        return torch.sum(h_embs * r_embs * t_embs, dim=1)
     
     def loss(self, triples: torch.Tensor, labels: torch.Tensor):
         """Calculate the loss
@@ -130,4 +120,5 @@ class RESCAL(KRLModel):
         :return: dissimilarity score for given triplets
         """
         h_embs, r_embs, t_embs = self.embed(triples)
-        return -self._scoring(h_embs, r_embs, t_embs)
+        scores = self._scoring(h_embs, r_embs, t_embs)
+        return -scores

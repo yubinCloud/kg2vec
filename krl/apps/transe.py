@@ -1,6 +1,5 @@
 import typer
 from pathlib import Path
-import torch
 from torch.utils.data import DataLoader
 
 from config import DatasetConf, TrainConf
@@ -9,10 +8,8 @@ from dataset import create_mapping, KRLDataset
 from trainer import TransETrainer
 from negative_sampler import RandomNegativeSampler
 import storage
+import utils
 
-
-def get_device() -> torch.device:
-    return torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
 
 app = typer.Typer()
 
@@ -24,6 +21,7 @@ def train_transe(
         valid_batch_size: int = typer.Option(...),
         valid_freq: int = typer.Option(...),
         lr: float = typer.Option(...),
+        optimizer: str = typer.Option('adam'),
         epoch_size: int = typer.Option(...),
         embed_dim: int = typer.Option(...),
         norm: int = typer.Option(...),
@@ -46,6 +44,7 @@ def train_transe(
         batch_size=batch_size,
         valid_batch_size=valid_batch_size,
         learning_rate=lr,
+        optimizer=optimizer,
         epoch_size=epoch_size,
         embed_dim=embed_dim,
         norm=norm,
@@ -54,15 +53,12 @@ def train_transe(
     )
     # create mapping
     entity2id, rel2id = create_mapping(dataset_conf)
-    device = get_device()
+    device = utils.get_device()
     ent_num = len(entity2id)
     rel_num = len(rel2id)
     
     # create dataset and dataloader
-    train_dataset = KRLDataset(dataset_conf, 'train', entity2id, rel2id)
-    train_dataloder = DataLoader(train_dataset, hyper_params.batch_size)
-    valid_dataset = KRLDataset(dataset_conf, 'valid', entity2id, rel2id)
-    valid_dataloder = DataLoader(valid_dataset, hyper_params.valid_batch_size)
+    train_dataset, train_dataloader, valid_dataset, valid_dataloader = utils.create_dataloader(dataset_conf, hyper_params, entity2id, rel2id)
     
     # create negative-sampler
     neg_sampler = RandomNegativeSampler(train_dataset, device)
@@ -72,7 +68,7 @@ def train_transe(
     model = model.to(device)
     
     # create optimizer
-    optimizer = torch.optim.Adam(model.parameters(), lr=hyper_params.learning_rate)
+    optimizer = utils.create_optimizer(optimizer, model, hyper_params.learning_rate)
     
     # create trainer
     trainer = TransETrainer(
@@ -83,8 +79,8 @@ def train_transe(
         entity2id=entity2id,
         rel2id=rel2id,
         device=device,
-        train_dataloder=train_dataloder,
-        valid_dataloder=valid_dataloder,
+        train_dataloder=train_dataloader,
+        valid_dataloder=valid_dataloader,
         train_neg_sampler=neg_sampler,
         valid_neg_sampler=neg_sampler,
         optimzer=optimizer

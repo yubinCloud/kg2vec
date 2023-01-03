@@ -25,8 +25,8 @@ class KRLTrainer(ABC):
                  entity2id: Mapping[str ,int],
                  rel2id: Mapping[str, int],
                  device: torch.device,
-                 train_dataloder: DataLoader,
-                 valid_dataloder: DataLoader,
+                 train_dataloader: DataLoader,
+                 valid_dataloader: DataLoader,
                  train_neg_sampler: NegativeSampler,
                  valid_neg_sampler: NegativeSampler,
                  optimzer: torch.optim.Optimizer
@@ -38,8 +38,8 @@ class KRLTrainer(ABC):
        self.entity2id = entity2id
        self.rel2id = rel2id
        self.device = device
-       self.train_dataloder = train_dataloder
-       self.valid_dataloder = valid_dataloder
+       self.train_dataloader = train_dataloader
+       self.valid_dataloader = valid_dataloader
        self.train_neg_sampler = train_neg_sampler
        self.valid_neg_sampler = valid_neg_sampler
        self.optimzer = optimzer
@@ -148,7 +148,7 @@ class TransETrainer(KRLTrainer):
             print("Starting epoch: ", epoch_id)
             loss_sum = 0
             model.train()
-            for i, batch in enumerate(self.train_dataloder):
+            for i, batch in enumerate(self.train_dataloader):
                 # get a batch of training data
                 pos_heads, pos_rels, pos_tails = batch[0].to(device), batch[1].to(device), batch[2].to(device)
                 pos_triples = torch.stack([pos_heads, pos_rels, pos_tails], dim=1)  # pos_triples: [batch_size, 3]
@@ -165,7 +165,7 @@ class TransETrainer(KRLTrainer):
                 model.eval()
                 with torch.no_grad():
                     ent_num = len(self.entity2id)
-                    _, _, hits_at_10, _ = self.run_inference(self.valid_dataloder, ent_num)
+                    _, _, hits_at_10, _ = self.run_inference(self.valid_dataloader, ent_num)
                     if hits_at_10 > best_score:
                         best_score = hits_at_10
                         print('best score of valid: ', best_score)
@@ -190,7 +190,7 @@ class RescalTrainer(KRLTrainer):
             print("Starting epoch: ", epoch_id)
             loss_sum = 0
             model.train()
-            for batch in iter(self.train_dataloder):
+            for batch in iter(self.train_dataloader):
                 pos_heads, pos_rels, pos_tails = batch[0].to(device), batch[1].to(device), batch[2].to(device)
                 pos_triples = torch.stack([pos_heads, pos_rels, pos_tails], dim=1)  # pos_triples: [batch_size, 3]
                 neg_triples = self.train_neg_sampler.neg_sample(pos_heads, pos_rels, pos_tails)  # neg_triples: [batch_size, 3]
@@ -214,7 +214,7 @@ class RescalTrainer(KRLTrainer):
                 model.eval()
                 with torch.no_grad():
                     ent_num = len(self.entity2id)
-                    _, _, hits_at_10, _ = self.run_inference(self.valid_dataloder, ent_num)
+                    _, _, hits_at_10, _ = self.run_inference(self.valid_dataloader, ent_num)
                     if hits_at_10 > best_score:
                         best_score = hits_at_10
                         print('best score of valid: ', best_score)

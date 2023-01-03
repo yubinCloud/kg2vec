@@ -28,7 +28,7 @@ The example `./transe.ipynb` is a good tutorial for reproduce the TransE if you 
 | :heavy_check_mark:  | RESCAL | 2011 | ICML'11, [OpenReview](https://openreview.net/forum?id=H14QEiZ_WS) |
 | :heavy_check_mark:  | TransE | 2013 | NIPS'13, [ACM](http://dl.acm.org/doi/10.5555/2999792.2999923) |
 | :heavy_check_mark:  | TransH | 2014 | AAAI'14, [ReasearchGate](https://www.researchgate.net/publication/319207032_Knowledge_Graph_Embedding_by_Translating_on_Hyperplanes) |
-| :white_circle: | DistMult | 2014 | ICLR'15, [arXiv](http://arxiv.org/abs/1412.6575) |
+| :heavy_check_mark: | DistMult | 2014 | ICLR'15, [arXiv](http://arxiv.org/abs/1412.6575) |
 | :white_circle: | TransR | 2015 | AAAI'15, [AAAI](https://ojs.aaai.org/index.php/AAAI/article/view/9491) |
 | :white_circle: | TransD | 2015 | ACL-IJCNLP 2015, [Aclanthology](https://aclanthology.org/P15-1067) |
 | :white_circle: | ComplEx | 2016 | ICML'16, [arXiv](http://arxiv.org/abs/1606.06357) |

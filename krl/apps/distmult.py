@@ -1,42 +1,39 @@
 from torch.utils.data import DataLoader
 from pathlib import Path
 import typer
+from typing import Literal
 
 from config import DatasetConf, TrainConf
-from models.transh import TransHHyperParam, TransH
+from models.distmult import DistMult, DistMultHyperParam
 from dataset import create_mapping, KRLDataset
-from negative_sampler import TphAndHptNegativeSampler
-from trainer import TransETrainer
+from trainer import RescalTrainer
+from negative_sampler import RandomNegativeSampler
 import storage
 import utils
-
 
 
 app = typer.Typer()
 
 
 @app.command(name='train')
-def train_tranh(
+def train_distmult(
     dataset_name: str = typer.Option(...),
     base_dir: Path = typer.Option(...),
-    batch_size: int = typer.Option(128),
-    valid_batch_size: int = typer.Option(64),
-    valid_freq: int = typer.Option(5),
+    batch_size: int = typer.Option(...),
+    valid_batch_size: int = typer.Option(...),
+    valid_freq: int = typer.Option(50),
     lr: float = typer.Option(0.001),
-    epoch_size: int = typer.Option(500),
+    epoch_size: int = typer.Option(...),
     optimizer: str = typer.Option('adam'),
-    embed_dim: int = typer.Option(50),
-    norm: int = typer.Option(2),
-    margin: float = typer.Option(1.0),
-    C: float = typer.Option(1.0, help='a hyper-parameter weighting the importance of soft constraints.'),
-    eps: float = typer.Option(1e-3, help='the $\episilon$ in loss function'),
+    embed_dim: int = typer.Option(...),
+    alpha: float = typer.Option(0.001, help='regularization parameter'),
+    regul_type: str = typer.Option('F2', help='regularization type, F2 or N3', case_sensitive=False),
     ckpt_path: Path = typer.Option(...),
     metric_result_path: Path = typer.Option(...)
 ):
     if not base_dir.exists():
-        print("base_dir doesn't exists.")
+        print("base_dir doesn't exists")
         raise typer.Exit()
-    # initialize all configurations
     dataset_conf = DatasetConf(
         dataset_name=dataset_name,
         base_dir=base_dir.absolute().as_posix()
@@ -45,18 +42,16 @@ def train_tranh(
         checkpoint_path=ckpt_path.absolute().as_posix(),
         metric_result_path=metric_result_path.absolute().as_posix()
     )
-    hyper_params = TransHHyperParam(
+    hyper_params = DistMultHyperParam(
         batch_size=batch_size,
         valid_batch_size=valid_batch_size,
         learning_rate=lr,
         optimizer=optimizer,
         epoch_size=epoch_size,
         embed_dim=embed_dim,
-        norm=norm,
-        margin=margin,
         valid_freq=valid_freq,
-        C=C,
-        eps=eps
+        alpha=alpha,
+        regul_type=regul_type
     )
     # create mapping
     entity2id, rel2id = create_mapping(dataset_conf)
@@ -64,21 +59,21 @@ def train_tranh(
     ent_num = len(entity2id)
     rel_num = len(rel2id)
     
-    # create dataset and dataloder
+    # create dataset and dataloader
     train_dataset, train_dataloader, valid_dataset, valid_dataloader = utils.create_dataloader(dataset_conf, hyper_params, entity2id, rel2id)
-
+    
     # create negative-sampler
-    neg_sampler = TphAndHptNegativeSampler(train_dataset, device)
+    neg_sampler = RandomNegativeSampler(train_dataset, device)
     
     # create model
-    model = TransH(ent_num, rel_num, device, norm, embed_dim, margin)
+    model = DistMult(ent_num, rel_num, device, embed_dim, alpha, regul_type)
     model = model.to(device)
     
     # create optimizer
     optimizer = utils.create_optimizer(optimizer, model, hyper_params.learning_rate)
     
     # create trainer
-    trainer = TransETrainer(
+    trainer = RescalTrainer(
         model=model,
         train_conf=train_conf,
         params=hyper_params,
@@ -109,6 +104,5 @@ def train_tranh(
         f.write(f'dataset: {dataset_conf.dataset_name}\n')
         f.write(f'Hits@1: {hits_at_1}\n')
         f.write(f'Hits@3: {hits_at_3}\n')
-        f.write(f'Hist@10: {hits_at_10}\n')
+        f.write(f'Hits@10: {hits_at_10}\n')
         f.write(f'MRR: {mrr}\n')
-    

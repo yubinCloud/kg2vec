@@ -43,18 +43,28 @@ class TransE(KRLModel):
         self.dist_fn = nn.PairwiseDistance(p=self.norm) # the function for calculating the distance 
         self.criterion = nn.MarginRankingLoss(margin=self.margin)
     
-    def _distance(self, triples):
-        """计算一个 batch 的三元组的 distance
+    def embed(self, triples):
+        """get the embedding of triples
 
-        :param triples: 一个 batch 的 triple，size: [batch, 3]
-        :return: size: [batch,]
+        :param triples: [heads, rels, tails]
+        :return: embedding of triples.
         """
+        assert triples.shape[1] == 3
         heads = triples[:, 0]
         rels = triples[:, 1]
         tails = triples[:, 2]
         h_embs = self.ent_embedding(heads)  # h_embs: [batch, embed_dim]
         r_embs = self.rel_embedding(rels)
         t_embs = self.ent_embedding(tails)
+        return h_embs, r_embs, t_embs
+    
+    def _distance(self, triples):
+        """计算一个 batch 的三元组的 distance
+
+        :param triples: 一个 batch 的 triple，size: [batch, 3]
+        :return: size: [batch,]
+        """
+        h_embs, r_embs, t_embs = self.embed(triples)
         return self.dist_fn(h_embs + r_embs, t_embs)
         
     def loss(self, pos_distances, neg_distances):

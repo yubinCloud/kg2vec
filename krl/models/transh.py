@@ -59,7 +59,23 @@ class TransH(KRLModel):
         
         self.dist_fn = nn.PairwiseDistance(p=self.norm) # the function for calculating the distance 
     
-    def project(self, ent_embeds, rel_hyper_embeds):
+    def embed(self, triples):
+        """get the embedding of triples
+
+        :param triples: [heads, rels, tails]
+        :return: embedding of triples.
+        """
+        assert triples.shape[1] == 3
+        heads = triples[:, 0]
+        rels = triples[:, 1]
+        tails = triples[:, 2]
+        h_embs = self.ent_embedding(heads)  # h_embs: [batch, embed_dim]
+        t_embs = self.ent_embedding(tails)
+        r_embs = self.rel_embedding(rels)
+        r_hyper_embs = self.rel_hyper_embedding(rels)  # relation hyperplane, size: [batch_size, embed_dim]
+        return h_embs, r_embs, t_embs, r_hyper_embs
+    
+    def _project(self, ent_embeds, rel_hyper_embeds):
         """Project entity embedding into relation hyperplane
         computational process: $h - w_r^T h w_r$
 
@@ -75,20 +91,13 @@ class TransH(KRLModel):
         :return: size: [batch,]
         """
         assert triples.shape[1] == 3
-        # step 1: Split the triples into heads, rels and tails.
-        heads = triples[:, 0]  # size: [batch_size, ]
-        rels = triples[:, 1]
-        tails = triples[:, 2]
-        # step 2: Transform index tensor to embedding tensor.
-        h_embeds = self.ent_embedding(heads)  # size: [batch_size, embed_dim]
-        r_embeds = self.rel_embedding(rels)
-        t_embeds = self.ent_embedding(heads)
-        rel_hyper_embeds = self.rel_hyper_embedding(rels)
-        # step 3: Project entity head and tail embedding to relation hyperplane
-        h_embeds = self.project(h_embeds, rel_hyper_embeds)
-        t_embeds = self.project(t_embeds, rel_hyper_embeds)
-        # step 4 : Calculate similarity score in relation hyperplane
-        return self.dist_fn(h_embeds + r_embeds, t_embeds)
+        # step 1: Transform index tensor to embedding tensor.
+        h_embs, r_embs, t_embs, r_hyper_embs = self.embed(triples)
+        # step 2: Project entity head and tail embedding to relation hyperplane
+        h_embs = self.project(h_embs, r_hyper_embs)
+        t_embs = self.project(t_embs, r_hyper_embs)
+        # step 3: Calculate similarity score in relation hyperplane
+        return self.dist_fn(h_embs + r_embs, t_embs)
     
     def _cal_margin_based_loss(self, pos_distances, neg_distances):
         """Calculate the margin-based loss

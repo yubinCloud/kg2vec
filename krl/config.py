@@ -26,6 +26,7 @@ class HyperParam(BaseModel, ABC):
     batch_size: int = 128
     valid_batch_size: int = 64
     learning_rate: float = 0.001
+    optimizer: str = Field(defualt='adam', title='optimizer name')
     epoch_size: int = 500
     valid_freq: int = Field(defualt=5, title='训练过程中，每隔多少次就做一次 valid 来验证是否保存模型')
 
