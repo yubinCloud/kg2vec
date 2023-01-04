@@ -94,8 +94,8 @@ class TransH(KRLModel):
         # step 1: Transform index tensor to embedding tensor.
         h_embs, r_embs, t_embs, r_hyper_embs = self.embed(triples)
         # step 2: Project entity head and tail embedding to relation hyperplane
-        h_embs = self.project(h_embs, r_hyper_embs)
-        t_embs = self.project(t_embs, r_hyper_embs)
+        h_embs = self._project(h_embs, r_hyper_embs)
+        t_embs = self._project(t_embs, r_hyper_embs)
         # step 3: Calculate similarity score in relation hyperplane
         return self.dist_fn(h_embs + r_embs, t_embs)
     

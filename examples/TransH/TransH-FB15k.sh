@@ -8,7 +8,7 @@ python app.py TransH train --dataset-name "FB15k"\
     --valid-batch-size 64 \
     --valid-freq 5 \
     --lr 0.001 \
-    --epoch-size 500 \
+    --epoch-size 10 \
     --embed-dim 100 \
     --norm 1 \
     --margin 2.0 \

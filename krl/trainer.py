@@ -4,15 +4,15 @@ KRLTrainer for training and testing models.
 from typing import Mapping
 import torch
 from torch.utils.data import DataLoader
-from typing import Tuple
 from rich.progress import track
-from abc import ABC, abstractclassmethod
+from abc import ABC, abstractmethod
 
 from base_model import KRLModel
 from config import TrainConf, HyperParam, DatasetConf
 from negative_sampler import NegativeSampler
-import metric, storage
-
+import storage
+from evaluator import KRLEvaluator
+from metric import KRLMetric, MetricEnum
 
 
 
@@ -46,18 +46,19 @@ class KRLTrainer(ABC):
     
     def run_inference(self,
                       dataloder: DataLoader,
-                      ent_num: int
-                      ) -> Tuple[float, float, float, float]:
+                      ent_num: int,
+                      evaluator: KRLEvaluator,
+                      ) -> KRLMetric:
         """
         Run the inference process on the KRL model.
         
         Rewrite this function if you need more logic for the training model.
         The implementation here just provides an example of training TransE.
         """
-        hits_at_1 = 0.0
-        hits_at_3 = 0.0
-        hits_at_10 = 0.0
-        mrr = 0.0
+        metric_result = KRLMetric()
+        # make the metric which we want to calculate to 0.
+        for m in evaluator.metrics:
+            setattr(metric_result, m.value, 0.0)
         examples_count = 0
         
         model = self.model
@@ -85,21 +86,20 @@ class KRLTrainer(ABC):
             predictions = torch.cat([tails_predictions, heads_predictions], dim=0)  # predictions: [batch_size * 2, ent_num]
             ground_truth_entity_id = torch.cat([tails.reshape(-1, 1), heads.reshape(-1, 1)], dim=0)  # [batch_size * 2, 1]
             # calculate metrics
-            hits_at_1 += metric.cal_hits_at_k(predictions, ground_truth_entity_id, device=device, k=1)
-            hits_at_3 += metric.cal_hits_at_k(predictions, ground_truth_entity_id, device=device, k=3)
-            hits_at_10 += metric.cal_hits_at_k(predictions, ground_truth_entity_id, device=device, k=10)
-            mrr += metric.cal_mrr(predictions, ground_truth_entity_id)
-        
+            cur_metric = evaluator.evaluate(predictions, ground_truth_entity_id)
+            # sum the cur_metric into metric_result
+            for m in evaluator.metrics:
+                v = getattr(cur_metric, m.value) + getattr(metric_result, m.value)  # new_value = cur_value + old_value
+                setattr(metric_result, m.value, v)  # reset to new_value
+            
             examples_count += predictions.size()[0]
         
-        hits_at_1_score = hits_at_1 / examples_count * 100
-        hits_at_3_score = hits_at_3 / examples_count * 100
-        hits_at_10_score = hits_at_10 / examples_count * 100
-        mrr_score = mrr / examples_count * 100
-        
-        return hits_at_1_score, hits_at_3_score, hits_at_10_score, mrr_score
+        for m in evaluator.metrics:
+            score = getattr(metric_result, m.value) / examples_count * 100
+            setattr(metric_result, m.value, score)
+        return metric_result
     
-    @abstractclassmethod
+    @abstractmethod
     def run_training(self):
         """
         Run the training process on the KRL model.
@@ -143,6 +143,7 @@ class TransETrainer(KRLTrainer):
         model = self.model
         # prepare the tools for tarining
         best_score = 0.0
+        evaluator = KRLEvaluator(self.device, [MetricEnum.HITS_AT_10])
         # training loop
         for epoch_id in track(range(1, self.params.epoch_size + 1), description='Total...'):
             print("Starting epoch: ", epoch_id)
@@ -165,7 +166,8 @@ class TransETrainer(KRLTrainer):
                 model.eval()
                 with torch.no_grad():
                     ent_num = len(self.entity2id)
-                    _, _, hits_at_10, _ = self.run_inference(self.valid_dataloader, ent_num)
+                    metric = self.run_inference(self.valid_dataloader, ent_num, evaluator)
+                    hits_at_10 = metric.hits_at_10
                     if hits_at_10 > best_score:
                         best_score = hits_at_10
                         print('best score of valid: ', best_score)
@@ -185,6 +187,7 @@ class RescalTrainer(KRLTrainer):
         model = self.model
         # prepare tools for training
         best_score = 0.0
+        evaluator = KRLEvaluator(self.device, [MetricEnum.HITS_AT_10])
         # training loop
         for epoch_id in track(range(1, self.params.epoch_size + 1), description='Total...'):
             print("Starting epoch: ", epoch_id)
@@ -214,7 +217,8 @@ class RescalTrainer(KRLTrainer):
                 model.eval()
                 with torch.no_grad():
                     ent_num = len(self.entity2id)
-                    _, _, hits_at_10, _ = self.run_inference(self.valid_dataloader, ent_num)
+                    metric = self.run_inference(self.valid_dataloader, ent_num, evaluator)
+                    hits_at_10 = metric.hits_at_10
                     if hits_at_10 > best_score:
                         best_score = hits_at_10
                         print('best score of valid: ', best_score)

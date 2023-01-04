@@ -4,15 +4,14 @@ Base class for various KRL models.
 
 import torch.nn as nn
 import torch
-from abc import ABC, abstractclassmethod
-from typing import Tuple
+from abc import ABC, abstractmethod
 
 
 class KRLModel(nn.Module, ABC):
     def __init__(self):
         super().__init__()
         
-    @abstractclassmethod
+    @abstractmethod
     def embed(self, triples):
         """get the embeddings of the triples
 
@@ -21,19 +20,19 @@ class KRLModel(nn.Module, ABC):
         """
         pass
     
-    @abstractclassmethod
+    @abstractmethod
     def loss(self) -> torch.Tensor:
         """计算模型的损失
         """
         pass
     
-    @abstractclassmethod
+    @abstractmethod
     def forward(self):
         """Return model losses based on the input.
         """
         pass
     
-    @abstractclassmethod
+    @abstractmethod
     def predict(self, triples: torch.Tensor):
         """Calculated dissimilarity score for given triplets.
 

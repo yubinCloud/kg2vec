@@ -1,7 +1,6 @@
 from torch.utils.data import DataLoader
 from pathlib import Path
 import typer
-from typing import Literal
 
 from config import DatasetConf, TrainConf
 from models.distmult import DistMult, DistMultHyperParam
@@ -10,6 +9,10 @@ from trainer import RescalTrainer
 from negative_sampler import RandomNegativeSampler
 import storage
 import utils
+from evaluator import KRLEvaluator
+from metric_fomatter import StringFormatter
+from serializer import FileSerializer
+from metric import MetricEnum
 
 
 app = typer.Typer()
@@ -91,18 +94,30 @@ def train_distmult(
     # training process
     trainer.run_training()
     
+    # create evaluator
+    metrics = [
+        MetricEnum.MRR,
+        MetricEnum.HITS_AT_1,
+        MetricEnum.HITS_AT_3,
+        MetricEnum.HITS_AT_10
+    ]
+    evaluator = KRLEvaluator(device, metrics)
+    
     # Testing the best checkpoint on test dataset
+    # load best model
     ckpt = storage.load_checkpoint(train_conf)
     model.load_state_dict(ckpt.model_state_dict)
     model = model.to(device)
+    # create test-dataset
     test_dataset = KRLDataset(dataset_conf, 'test', entity2id, rel2id)
     test_dataloder = DataLoader(test_dataset, hyper_params.valid_batch_size)
-    hits_at_1, hits_at_3, hits_at_10, mrr = trainer.run_inference(test_dataloder, ent_num)
+    # run inference on test-dataset
+    metric = trainer.run_inference(test_dataloder, ent_num, evaluator)
     
-    # write results
-    with open(train_conf.metric_result_path, 'w') as f:
-        f.write(f'dataset: {dataset_conf.dataset_name}\n')
-        f.write(f'Hits@1: {hits_at_1}\n')
-        f.write(f'Hits@3: {hits_at_3}\n')
-        f.write(f'Hits@10: {hits_at_10}\n')
-        f.write(f'MRR: {mrr}\n')
+    # choice metric formatter
+    metric_formatter = StringFormatter()
+    
+    # choice the way of serialize
+    serilizer = FileSerializer(train_conf, dataset_conf)
+    # serialize the metric
+    serilizer.serialize(metric, metric_formatter)

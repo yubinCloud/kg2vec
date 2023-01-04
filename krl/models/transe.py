@@ -17,16 +17,15 @@ class TransE(KRLModel):
                  ent_num: int,
                  rel_num: int,
                  device: torch.device,
-                 norm: int,
-                 embed_dim: int,
-                 margin: float):
+                 hyper_params: TransEHyperParam
+    ):
         super().__init__()
         self.ent_num = ent_num
         self.rel_num = rel_num
         self.device = device
-        self.norm = norm
-        self.embed_dim = embed_dim
-        self.margin = margin
+        self.norm = hyper_params.norm
+        self.embed_dim = hyper_params.embed_dim
+        self.margin = hyper_params.margin
     
         # 初始化 ent_embedding，按照原论文的方法来初始化
         self.ent_embedding = nn.Embedding(self.ent_num, self.embed_dim)
