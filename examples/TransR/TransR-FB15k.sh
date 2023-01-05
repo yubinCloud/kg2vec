@@ -5,10 +5,10 @@ cd ../krl  # /krl
 python app.py TransR train --dataset-name "FB15k"\
     --base-dir /root/yubin/dataset/KRL/master/FB15k \
     --batch-size 4800 \
-    --valid-batch-size 64 \
-    --valid-freq 5 \
+    --valid-batch-size 32 \
+    --valid-freq 25 \
     --lr 0.001 \
-    --epoch-size 10 \
+    --epoch-size 400 \
     --ent-dim 50 \
     --rel-dim 50 \
     --norm 1 \
