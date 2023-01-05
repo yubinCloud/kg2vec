@@ -8,10 +8,20 @@ Reference:
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from torch.utils.data import DataLoader
 from pydantic import Field
 
-from base_model import KRLModel
-from config import TransHyperParam
+from base_model import KRLModel, ModelMain
+from config import TransHyperParam, DatasetConf, TrainConf
+from dataset import create_mapping, KRLDataset
+from negative_sampler import TphAndHptNegativeSampler
+import utils
+from trainer import TransETrainer
+from metric import MetricEnum
+from evaluator import KRLEvaluator
+import storage
+from metric_fomatter import StringFormatter
+from serializer import FileSerializer
 
 
 class TransHHyperParam(TransHyperParam):
@@ -24,24 +34,22 @@ class TransHHyperParam(TransHyperParam):
 
 
 class TransH(KRLModel):
-    def __init__(self,
-                 ent_num: int,
-                 rel_num: int,
-                 device: torch.device,
-                 norm: int = 2,
-                 embed_dim: int = 50,
-                 margin: float = 1.0,
-                 C: float = 1.0,
-                 eps: float = 0.001):
+    def __init__(
+        self,
+        ent_num: int,
+        rel_num: int,
+        device: torch.device,
+        hyper_params: TransHHyperParam
+    ):
         super().__init__()
         self.ent_num = ent_num
         self.rel_num = rel_num
         self.device = device
-        self.norm = norm
-        self.embed_dim = embed_dim
-        self.margin = margin
-        self.C = C      # a hyper-parameter weighting the importance of soft constraints
-        self.eps = eps  # the $\episilon$ in loss function
+        self.norm = hyper_params.norm
+        self.embed_dim = hyper_params.embed_dim
+        self.margin = hyper_params.margin
+        self.C = hyper_params.C      # a hyper-parameter weighting the importance of soft constraints
+        self.eps = hyper_params.eps  # the $\episilon$ in loss function
         
         self.margin_loss_fn = nn.MarginRankingLoss(margin=self.margin)
         
@@ -158,3 +166,84 @@ class TransH(KRLModel):
         :return: dissimilarity score for given triplets
         """
         return self._distance(triples)
+
+
+class TransHMain(ModelMain):
+    def __init__(
+        self,
+        dataset_conf: DatasetConf,
+        train_conf: TrainConf,
+        hyper_params: TransHHyperParam,
+        device: torch.device
+    ) -> None:
+        super().__init__()
+        self.dataset_conf = dataset_conf
+        self.train_conf = train_conf
+        self.hyper_params = hyper_params
+        self.device = device
+    
+    def __call__(self):
+        # create mapping
+        entity2id, rel2id = create_mapping(self.dataset_conf)
+        ent_num = len(entity2id)
+        rel_num = len(rel2id)
+        
+        # create dataset and dataloader
+        train_dataset, train_dataloader, valid_dataset, valid_dataloader = utils.create_dataloader(self.dataset_conf, self.hyper_params, entity2id, rel2id)
+    
+        # create negative-sampler
+        neg_sampler = TphAndHptNegativeSampler(train_dataset, self.device)
+
+        # create model
+        model = TransH(ent_num, rel_num, self.device, self.hyper_params)
+        model = model.to(self.device)
+        
+        # create optimizer
+        optimizer = utils.create_optimizer(self.hyper_params.optimizer, model, self.hyper_params.learning_rate)
+    
+        # create trainer
+        trainer = TransETrainer(
+            model=model,
+            train_conf=self.train_conf,
+            params=self.hyper_params,
+            dataset_conf=self.dataset_conf,
+            entity2id=entity2id,
+            rel2id=rel2id,
+            device=self.device,
+            train_dataloder=train_dataloader,
+            valid_dataloder=valid_dataloader,
+            train_neg_sampler=neg_sampler,
+            valid_neg_sampler=neg_sampler,
+            optimzer=optimizer
+        )
+    
+        # training process
+        trainer.run_training()
+    
+        # create evaluator
+        metrics = [
+            MetricEnum.MRR,
+            MetricEnum.HITS_AT_1,
+            MetricEnum.HITS_AT_3,
+            MetricEnum.HITS_AT_10
+        ]
+        evaluator = KRLEvaluator(self.device, metrics)
+    
+        # Testing the best checkpoint on test dataset
+        # load best model
+        ckpt = storage.load_checkpoint(self.train_conf)
+        model.load_state_dict(ckpt.model_state_dict)
+        model = model.to(self.device)
+        # create test-dataset
+        test_dataset = KRLDataset(self.dataset_conf, 'test', entity2id, rel2id)
+        test_dataloder = DataLoader(test_dataset, self.hyper_params.valid_batch_size)
+        # run inference on test-dataset
+        metric = trainer.run_inference(test_dataloder, ent_num, evaluator)
+    
+        # choice metric formatter
+        metric_formatter = StringFormatter()
+    
+        # choice the way of serialize
+        serilizer = FileSerializer(self.train_conf, self.dataset_conf)
+        # serialize the metric
+        serilizer.serialize(metric, metric_formatter)
