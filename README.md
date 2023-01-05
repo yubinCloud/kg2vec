@@ -24,7 +24,7 @@ The example `./transe.ipynb` is a good tutorial for reproduce the TransE if you 
 ## Plan
 
 | Status |  Model   | Year | Paper  | Rewarks |
-|  :----:  | :----:  | :----: | :--- |
+|  :----:  | :----:  | :----: | :--- | --- |
 | :heavy_check_mark:  | RESCAL | 2011 | ICML'11, [OpenReview](https://openreview.net/forum?id=H14QEiZ_WS) | |
 | :heavy_check_mark:  | TransE | 2013 | NIPS'13, [ACM](http://dl.acm.org/doi/10.5555/2999792.2999923) | |
 | :heavy_check_mark:  | TransH | 2014 | AAAI'14, [ReasearchGate](https://www.researchgate.net/publication/319207032_Knowledge_Graph_Embedding_by_Translating_on_Hyperplanes) | |
@@ -40,6 +40,6 @@ The example `./transe.ipynb` is a good tutorial for reproduce the TransE if you 
 | :white_circle: | SimplE | 2018 | NIPS'18, [arXiv](http://arxiv.org/abs/1802.04868) | |
 | :white_circle: | RotatE | 2019 | ICLR'19, [arXiv](http://arxiv.org/abs/1902.10197) | |
 | :white_circle: | QuatE | 2019 | NeurIPS'19, [arXiv](http://arxiv.org/abs/1904.10281) | |
-| :white_circle: | ConvR | NAACL-HLT 2019, [Aclanthology](https://aclanthology.org/N19-1103) | |
+| :white_circle: | ConvR | 2019 | NAACL-HLT 2019, [Aclanthology](https://aclanthology.org/N19-1103) | |
 | :white_circle: | KG-BERT | 2019 | [arXiv](http://arxiv.org/abs/1909.03193) | |
 | :white_circle: | PairRE | 2021 | ACL-IJCNLP 2021, [Aclanthology](https://aclanthology.org/2021.acl-long.336) | |
