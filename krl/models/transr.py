@@ -5,14 +5,26 @@ Reference:
 - https://github.com/zqhead/TransR
 - https://github.com/Sujit-O/pykg2vec/blob/master/pykg2vec/models/pairwise.py
 - https://github.com/nju-websoft/muKG/blob/main/src/torch/kge_models/TransR.py
+
+Note: Although the TransE can be run, I don't know why it have very low hits@10 metric.
 """
 
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from torch.utils.data import DataLoader
 
-from base_model import KRLModel
-from config import HyperParam
+from base_model import KRLModel, ModelMain
+from config import HyperParam, DatasetConf, TrainConf
+from dataset import create_mapping, KRLDataset
+from negative_sampler import TphAndHptNegativeSampler
+import utils
+from trainer import TransETrainer
+from metric import MetricEnum
+from evaluator import KRLEvaluator
+import storage
+from metric_fomatter import StringFormatter
+from serializer import FileSerializer
 
 
 class TransRHyperParam(HyperParam):
@@ -26,39 +38,37 @@ class TransRHyperParam(HyperParam):
     
 
 class TransR(KRLModel):
-    def __init__(
-        self,
-        ent_num: int,
-        rel_num: int,
-        device: torch.device,
-        hyper_params: TransRHyperParam
+    def __init__(self,
+                 ent_num: int,
+                 rel_num: int,
+                 device: torch.device,
+                 hyper_params: TransRHyperParam
     ):
         super().__init__()
         self.ent_num = ent_num
         self.rel_num = rel_num
         self.device = device
-        
+        self.norm = hyper_params.norm
         self.ent_dim = hyper_params.ent_dim
         self.rel_dim = hyper_params.rel_dim
-        self.norm = hyper_params.norm
         self.margin = hyper_params.margin
         self.C = hyper_params.C
-        
-        # initialize ent_embedding
+    
+        # 初始化 ent_embedding，按照原论文的方法来初始化
         self.ent_embedding = nn.Embedding(self.ent_num, self.ent_dim)
-        nn.init.xavier_uniform_(self.ent_embedding.weight.data)
+        torch.nn.init.xavier_uniform_(self.ent_embedding.weight.data)
         
-        # initialize rel_embedding
+        # 初始化 rel_embedding
         self.rel_embedding = nn.Embedding(self.rel_num, self.rel_dim)
-        nn.init.xavier_uniform_(self.rel_embedding.weight.data)
+        torch.nn.init.xavier_uniform_(self.rel_embedding.weight.data)
         
         # initialize trasfer matrix
-        self.transfer_matrix = nn.Embedding(self.rel_num, self.ent_dim * self.rel_dim)
-        nn.init.xavier_uniform_(self.transfer_matrix.weight.data)
-        
+        self.tranfer_matrix = nn.Embedding(self.rel_num, self.ent_dim * self.rel_dim)
+        nn.init.xavier_uniform_(self.tranfer_matrix.weight.data)
+
+        self.dist_fn = nn.PairwiseDistance(p=self.norm) # the function for calculating the distance 
         self.margin_loss_fn = nn.MarginRankingLoss(margin=self.margin)
-        self.dist_fn = nn.PairwiseDistance(p=self.norm)
-        
+    
     def _transfer(self, ent_embs: torch.Tensor, rels_tranfer: torch.Tensor):
         """Tranfer the entity space into the relation-specfic space
 
@@ -69,31 +79,30 @@ class TransR(KRLModel):
         assert ent_embs.size(1) == self.ent_dim
         assert rels_tranfer.size(1) == self.ent_dim * self.rel_dim
             
-        rels_tranfer = rels_tranfer.reshape(-1, self.ent_dim, self.rel_dim)    # [batch, ent_dim, rel_dim]
-        ent_embs = ent_embs.reshape(-1, 1, self.ent_dim)   # [batch, 1, ent_dim]
+        rels_tranfer = rels_tranfer.view(-1, self.ent_dim, self.rel_dim)    # [batch, ent_dim, rel_dim]
+        ent_embs = ent_embs.view(-1, 1, self.ent_dim)   # [batch, 1, ent_dim]
             
         ent_proj = torch.matmul(ent_embs, rels_tranfer)   # [batch, 1, rel_dim]
-        return ent_proj.reshape(-1, self.rel_dim)   # [batch, rel_dim]
-        
+        return ent_proj.view(-1, self.rel_dim)   # [batch, rel_dim]
+    
     def embed(self, triples):
         """get the embedding of triples
-            
+
         :param triples: [heads, rels, tails]
         :return: embedding of triples.
         """
-        assert triples.size(1) == 3
-        # split triples
+        assert triples.shape[1] == 3
         heads = triples[:, 0]
         rels = triples[:, 1]
         tails = triples[:, 2]
         # id -> embedding
         h_embs = self.ent_embedding(heads)  # h_embs: [batch, embed_dim]
-        t_embs = self.ent_embedding(tails)
         r_embs = self.rel_embedding(rels)
-        rels_tranfer = self.transfer_matrix(rels)
-        # tranfer the space
-        h_embs = self._transfer(h_embs, rels_tranfer)
-        t_embs = self._transfer(t_embs, rels_tranfer)
+        t_embs = self.ent_embedding(tails)
+        rels_transfer = self.tranfer_matrix(rels)
+        # tranfer the entity embedding from entity space into relation-specific space
+        h_embs = self._transfer(h_embs, rels_transfer)
+        t_embs = self._transfer(t_embs, rels_transfer)
         return h_embs, r_embs, t_embs
     
     def _distance(self, triples):
@@ -102,11 +111,9 @@ class TransR(KRLModel):
         :param triples: 一个 batch 的 triple，size: [batch, 3]
         :return: size: [batch,]
         """
-        assert triples.shape[1] == 3
-        # id -> embedding
         h_embs, r_embs, t_embs = self.embed(triples)
         return self.dist_fn(h_embs + r_embs, t_embs)
-    
+        
     def _cal_margin_base_loss(self, pos_distances, neg_distances):
         """Calculate the margin-based loss
 
@@ -135,7 +142,7 @@ class TransR(KRLModel):
         margin_based_loss = self._cal_margin_base_loss(pos_distances, neg_distances)
         ent_scale_loss = self._cal_scale_loss(self.ent_embedding)
         rel_scale_loss = self._cal_scale_loss(self.rel_embedding)
-        return margin_based_loss
+        return margin_based_loss + self.C * ((ent_scale_loss + rel_scale_loss) / (self.ent_num + self.rel_num))
     
     def forward(self, pos_triples: torch.Tensor, neg_triples: torch.Tensor):
         """Return model losses based on the input.
@@ -159,3 +166,85 @@ class TransR(KRLModel):
         :return: dissimilarity score for given triplets
         """
         return self._distance(triples)
+
+
+class TransRMain(ModelMain):
+    
+    def __init__(
+        self,
+        dataset_conf: DatasetConf,
+        train_conf: TrainConf,
+        hyper_params: TransRHyperParam,
+        device: torch.device
+    ) -> None:
+        super().__init__()
+        self.dataset_conf = dataset_conf
+        self.train_conf = train_conf
+        self.hyper_params = hyper_params
+        self.device = device
+    
+    def __call__(self):
+        # create mapping
+        entity2id, rel2id = create_mapping(self.dataset_conf)
+        ent_num = len(entity2id)
+        rel_num = len(rel2id)
+        
+        # create dataset and dataloader
+        train_dataset, train_dataloader, valid_dataset, valid_dataloader = utils.create_dataloader(self.dataset_conf, self.hyper_params, entity2id, rel2id)
+    
+        # create negative-sampler
+        neg_sampler = TphAndHptNegativeSampler(train_dataset, self.device)
+
+        # create model
+        model = TransR(ent_num, rel_num, self.device, self.hyper_params)
+        model = model.to(self.device)
+        
+        # create optimizer
+        optimizer = utils.create_optimizer(self.hyper_params.optimizer, model, self.hyper_params.learning_rate)
+    
+        # create trainer
+        trainer = TransETrainer(
+            model=model,
+            train_conf=self.train_conf,
+            params=self.hyper_params,
+            dataset_conf=self.dataset_conf,
+            entity2id=entity2id,
+            rel2id=rel2id,
+            device=self.device,
+            train_dataloder=train_dataloader,
+            valid_dataloder=valid_dataloader,
+            train_neg_sampler=neg_sampler,
+            valid_neg_sampler=neg_sampler,
+            optimzer=optimizer
+        )
+    
+        # training process
+        trainer.run_training()
+    
+        # create evaluator
+        metrics = [
+            MetricEnum.MRR,
+            MetricEnum.HITS_AT_1,
+            MetricEnum.HITS_AT_3,
+            MetricEnum.HITS_AT_10
+        ]
+        evaluator = KRLEvaluator(self.device, metrics)
+    
+        # Testing the best checkpoint on test dataset
+        # load best model
+        ckpt = storage.load_checkpoint(self.train_conf)
+        model.load_state_dict(ckpt.model_state_dict)
+        model = model.to(self.device)
+        # create test-dataset
+        test_dataset = KRLDataset(self.dataset_conf, 'test', entity2id, rel2id)
+        test_dataloder = DataLoader(test_dataset, self.hyper_params.valid_batch_size)
+        # run inference on test-dataset
+        metric = trainer.run_inference(test_dataloder, ent_num, evaluator)
+    
+        # choice metric formatter
+        metric_formatter = StringFormatter()
+    
+        # choice the way of serialize
+        serilizer = FileSerializer(self.train_conf, self.dataset_conf)
+        # serialize the metric
+        serilizer.serialize(metric, metric_formatter)

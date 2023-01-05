@@ -147,7 +147,6 @@ class TransETrainer(KRLTrainer):
         # training loop
         for epoch_id in track(range(1, self.params.epoch_size + 1), description='Total...'):
             print("Starting epoch: ", epoch_id)
-            loss_sum = 0
             model.train()
             for i, batch in enumerate(self.train_dataloader):
                 # get a batch of training data
@@ -158,7 +157,6 @@ class TransETrainer(KRLTrainer):
                 # calculte loss
                 loss, _, _ = model(pos_triples, neg_triples)
                 loss.backward()
-                loss_sum += loss.cpu().item()
                 # update model
                 optimzer.step()
             
