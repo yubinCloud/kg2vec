@@ -1,10 +1,10 @@
 import typer
 
-from apps.rescal import app as rescal_app
-from apps.transe import app as transe_app
-from apps.transh import app as transh_app
-from apps.distmult import app as distmult_app
-from apps.transr import app as transr_app
+from typer_apps.rescal import app as rescal_app
+from typer_apps.transe import app as transe_app
+from typer_apps.transh import app as transh_app
+from typer_apps.distmult import app as distmult_app
+from typer_apps.transr import app as transr_app
 
 
 
