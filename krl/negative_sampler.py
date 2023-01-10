@@ -41,9 +41,9 @@ class RandomNegativeSampler(NegativeSampler):
         return torch.stack([corupted_heads, rels, corupted_tails], dim=1)
 
 
-class TphAndHptNegativeSampler(NegativeSampler):
+class BernNegSampler(NegativeSampler):
     """
-    Choose whether to replace head or tail based on the tph and hpt characteristics of a specific relation in a triple.
+    Using bernoulli distribution to select whether to replace the head entity or tail entity.
     Specific sample process can refer to TransH paper or this implementation.
     """
     def __init__(self,

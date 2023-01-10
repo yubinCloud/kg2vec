@@ -14,7 +14,7 @@ from typing import Literal
 from base_model import KRLModel, ModelMain
 from config import HyperParam, DatasetConf, TrainConf
 from dataset import create_mapping, KRLDataset
-from negative_sampler import TphAndHptNegativeSampler
+from negative_sampler import BernNegSampler
 import utils
 from trainer import RescalTrainer
 from metric import MetricEnum
@@ -156,7 +156,7 @@ class DistMultMain(ModelMain):
         train_dataset, train_dataloader, valid_dataset, valid_dataloader = utils.create_dataloader(self.dataset_conf, self.hyper_params, entity2id, rel2id)
     
         # create negative-sampler
-        neg_sampler = TphAndHptNegativeSampler(train_dataset, self.device)
+        neg_sampler = BernNegSampler(train_dataset, self.device)
 
         # create model
         model = DistMult(ent_num, rel_num, self.device, self.hyper_params)

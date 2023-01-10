@@ -17,7 +17,7 @@ from torch.utils.data import DataLoader
 from base_model import KRLModel, ModelMain
 from config import HyperParam, DatasetConf, TrainConf
 from dataset import create_mapping, KRLDataset
-from negative_sampler import TphAndHptNegativeSampler
+from negative_sampler import BernNegSampler
 import utils
 from trainer import TransETrainer
 from metric import MetricEnum
@@ -193,7 +193,7 @@ class TransRMain(ModelMain):
         train_dataset, train_dataloader, valid_dataset, valid_dataloader = utils.create_dataloader(self.dataset_conf, self.hyper_params, entity2id, rel2id)
     
         # create negative-sampler
-        neg_sampler = TphAndHptNegativeSampler(train_dataset, self.device)
+        neg_sampler = BernNegSampler(train_dataset, self.device)
 
         # create model
         model = TransR(ent_num, rel_num, self.device, self.hyper_params)
