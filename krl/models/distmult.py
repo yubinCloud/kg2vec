@@ -18,7 +18,7 @@ from negative_sampler import BernNegSampler
 import utils
 from trainer import RescalTrainer
 from metric import MetricEnum
-from evaluator import KRLEvaluator
+from evaluator import RankEvaluator
 import storage
 from metric_fomatter import StringFormatter
 from serializer import FileSerializer
@@ -191,7 +191,7 @@ class DistMultMain(ModelMain):
             MetricEnum.HITS_AT_3,
             MetricEnum.HITS_AT_10
         ]
-        evaluator = KRLEvaluator(self.device, metrics)
+        evaluator = RankEvaluator(self.device, metrics)
     
         # Testing the best checkpoint on test dataset
         # load best model

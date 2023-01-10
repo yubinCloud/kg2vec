@@ -66,7 +66,7 @@ class Evaluator(ABC):
         pass
 
 
-class KRLEvaluator(Evaluator):
+class RankEvaluator(Evaluator):
     
     _SUPPORT_METRICS = {
         MetricEnum.MRR,
@@ -85,7 +85,7 @@ class KRLEvaluator(Evaluator):
         """
         super().__init__(device)
         for m in metrics:
-            if m not in KRLEvaluator._SUPPORT_METRICS:
+            if m not in RankEvaluator._SUPPORT_METRICS:
                 raise NotImplementedError(f"Evaluator don't support metric: {m.value}")
         self.metrics = set(metrics)
     

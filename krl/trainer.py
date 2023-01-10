@@ -11,7 +11,7 @@ from base_model import KRLModel
 from config import TrainConf, HyperParam, DatasetConf
 from negative_sampler import NegativeSampler
 import storage
-from evaluator import KRLEvaluator
+from evaluator import RankEvaluator
 from metric import KRLMetric, MetricEnum
 
 
@@ -47,7 +47,7 @@ class KRLTrainer(ABC):
     def run_inference(self,
                       dataloder: DataLoader,
                       ent_num: int,
-                      evaluator: KRLEvaluator,
+                      evaluator: RankEvaluator,
                       ) -> KRLMetric:
         """
         Run the inference process on the KRL model.
@@ -94,7 +94,7 @@ class KRLTrainer(ABC):
             
             examples_count += predictions.size()[0]
         
-        for m in evaluator.metrics:
+        for m in evaluator.metrics:  # 遍历所要计算的每一个 metric
             score = getattr(metric_result, m.value) / examples_count * 100
             setattr(metric_result, m.value, score)
         return metric_result
@@ -143,7 +143,7 @@ class TransETrainer(KRLTrainer):
         model = self.model
         # prepare the tools for tarining
         best_score = 0.0
-        evaluator = KRLEvaluator(self.device, [MetricEnum.HITS_AT_10])
+        evaluator = RankEvaluator(self.device, [MetricEnum.HITS_AT_10])
         # training loop
         for epoch_id in track(range(1, self.params.epoch_size + 1), description='Total...'):
             print("Starting epoch: ", epoch_id)
@@ -185,7 +185,7 @@ class RescalTrainer(KRLTrainer):
         model = self.model
         # prepare tools for training
         best_score = 0.0
-        evaluator = KRLEvaluator(self.device, [MetricEnum.HITS_AT_10])
+        evaluator = RankEvaluator(self.device, [MetricEnum.HITS_AT_10])
         # training loop
         for epoch_id in track(range(1, self.params.epoch_size + 1), description='Total...'):
             print("Starting epoch: ", epoch_id)
