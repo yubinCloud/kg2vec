@@ -9,10 +9,9 @@ python typer_app.py TransR train --dataset-name "FB15k"\
     --valid-freq 25 \
     --lr 0.001 \
     --epoch-size 400 \
-    --ent-dim 50 \
-    --rel-dim 50 \
+    --embed-dim 50 \
     --norm 1 \
     --margin 1.0 \
-    --c 1.0 \
+    --c 0.1 \
     --ckpt-path /root/sharespace/yubin/papers/KRL/scratch/TransX/tmp/transr_fb15k.ckpt \
     --metric-result-path /root/sharespace/yubin/papers/KRL/scratch/TransX/tmp/transr_fb15k_metrics.txt
