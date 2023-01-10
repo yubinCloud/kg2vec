@@ -30,8 +30,7 @@ from serializer import FileSerializer
 class TransRHyperParam(HyperParam):
     """Hyper-parameters of TransR
     """
-    ent_dim: int
-    rel_dim: int
+    embed_dim: int
     norm: int
     margin: float
     C: float
@@ -49,22 +48,39 @@ class TransR(KRLModel):
         self.rel_num = rel_num
         self.device = device
         self.norm = hyper_params.norm
-        self.ent_dim = hyper_params.ent_dim
-        self.rel_dim = hyper_params.rel_dim
-        self.margin = hyper_params.margin
+        self.embed_dim = hyper_params.embed_dim
         self.C = hyper_params.C
-    
+        
+        self.margin = hyper_params.margin
+        self.epsilon = 2.0
+        self.embedding_range = (self.margin + self.epsilon) / self.embed_dim
+
         # 初始化 ent_embedding，按照原论文的方法来初始化
-        self.ent_embedding = nn.Embedding(self.ent_num, self.ent_dim)
-        torch.nn.init.xavier_uniform_(self.ent_embedding.weight.data)
+        self.ent_embedding = nn.Embedding(self.ent_num, self.embed_dim)
+        nn.init.uniform_(
+            tensor=self.ent_embedding.weight.data,
+            a=-self.embedding_range,
+            b=self.embedding_range
+        )
+        # torch.nn.init.xavier_uniform_(self.ent_embedding.weight.data)
         
         # 初始化 rel_embedding
-        self.rel_embedding = nn.Embedding(self.rel_num, self.rel_dim)
-        torch.nn.init.xavier_uniform_(self.rel_embedding.weight.data)
+        self.rel_embedding = nn.Embedding(self.rel_num, self.embed_dim)
+        nn.init.uniform_(
+            tensor=self.rel_embedding.weight.data,
+            a=-self.embedding_range,
+            b=self.embedding_range
+        )
+        # torch.nn.init.xavier_uniform_(self.rel_embedding.weight.data)
         
         # initialize trasfer matrix
-        self.tranfer_matrix = nn.Embedding(self.rel_num, self.ent_dim * self.rel_dim)
-        nn.init.xavier_uniform_(self.tranfer_matrix.weight.data)
+        self.transfer_matrix = nn.Embedding(self.rel_num, self.embed_dim * self.embed_dim)
+        nn.init.uniform_(
+            tensor=self.transfer_matrix.weight.data,
+            a=-self.embedding_range,
+            b=self.embedding_range
+        )
+        # nn.init.xavier_uniform_(self.tranfer_matrix.weight.data)
 
         self.dist_fn = nn.PairwiseDistance(p=self.norm) # the function for calculating the distance 
         self.margin_loss_fn = nn.MarginRankingLoss(margin=self.margin)
@@ -76,14 +92,14 @@ class TransR(KRLModel):
         :param rels_tranfer: [batch, ent_dim * rel_dim]
         """
         assert ent_embs.size(0) == rels_tranfer.size(0)
-        assert ent_embs.size(1) == self.ent_dim
-        assert rels_tranfer.size(1) == self.ent_dim * self.rel_dim
+        assert ent_embs.size(1) == self.embed_dim
+        assert rels_tranfer.size(1) == self.embed_dim * self.embed_dim
             
-        rels_tranfer = rels_tranfer.view(-1, self.ent_dim, self.rel_dim)    # [batch, ent_dim, rel_dim]
-        ent_embs = ent_embs.view(-1, 1, self.ent_dim)   # [batch, 1, ent_dim]
+        rels_tranfer = rels_tranfer.view(-1, self.embed_dim, self.embed_dim)    # [batch, ent_dim, rel_dim]
+        ent_embs = ent_embs.view(-1, 1, self.embed_dim)   # [batch, 1, ent_dim]
             
         ent_proj = torch.matmul(ent_embs, rels_tranfer)   # [batch, 1, rel_dim]
-        return ent_proj.view(-1, self.rel_dim)   # [batch, rel_dim]
+        return ent_proj.view(-1, self.embed_dim)   # [batch, rel_dim]
     
     def embed(self, triples):
         """get the embedding of triples
@@ -99,7 +115,7 @@ class TransR(KRLModel):
         h_embs = self.ent_embedding(heads)  # h_embs: [batch, embed_dim]
         r_embs = self.rel_embedding(rels)
         t_embs = self.ent_embedding(tails)
-        rels_transfer = self.tranfer_matrix(rels)
+        rels_transfer = self.transfer_matrix(rels)
         # tranfer the entity embedding from entity space into relation-specific space
         h_embs = self._transfer(h_embs, rels_transfer)
         t_embs = self._transfer(t_embs, rels_transfer)
