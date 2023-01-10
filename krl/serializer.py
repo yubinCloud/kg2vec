@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 
 from config import TrainConf, DatasetConf
-from metric import KRLMetricBase, KRLMetric
+from metric import KRLMetricBase, RankMetric
 from metric_fomatter import MetricFormatter, StringFormatter
 
 
@@ -24,7 +24,7 @@ class FileSerializer(BaseSerializer):
     """
     Serilize the metric into local file.
     """
-    def serialize(self, metric: KRLMetric, formatter: StringFormatter) -> bool:
+    def serialize(self, metric: RankMetric, formatter: StringFormatter) -> bool:
         """
         Serialize the string metric into file.
 

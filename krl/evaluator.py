@@ -2,7 +2,7 @@ import torch
 from abc import ABC, abstractmethod
 from typing import List
 
-from metric import KRLMetricBase, KRLMetric, MetricEnum
+from metric import KRLMetricBase, RankMetric, MetricEnum
 
 
 def cal_hits_at_k(predictions: torch.Tensor,
@@ -84,25 +84,56 @@ class RankEvaluator(Evaluator):
         :param metrics: The metrics that you want to calcualte.
         """
         super().__init__(device)
+        self.example_cnt = 0
+        self.metrics = None
+        self._mrr_sum = None
+        self._hits_at_1_sum = None
+        self._hits_at_3_sum = None
+        self._hits_at_10_sum = None
+        # checks the metrics that you want to calcualte
+        self.reset_metrics(metrics)
+        # set to 0 if you want to calcualte this metric
+        self.clear()
+    
+    def clear(self):
+        self.example_cnt = 0
+        self._mrr_sum = None if MetricEnum.MRR not in self.metrics else 0
+        self._hits_at_1_sum = None if MetricEnum.HITS_AT_1 not in self.metrics else 0
+        self._hits_at_3_sum = None if MetricEnum.HITS_AT_3 not in self.metrics else 0
+        self._hits_at_10_sum = None if MetricEnum.HITS_AT_10 not in self.metrics else 0
+    
+    def reset_metrics(self, metrics):
         for m in metrics:
             if m not in RankEvaluator._SUPPORT_METRICS:
                 raise NotImplementedError(f"Evaluator don't support metric: {m.value}")
         self.metrics = set(metrics)
-    
+
     def evaluate(
         self,
         predictions: torch.Tensor,
         ground_truth_idx: torch.Tensor
-    ) -> KRLMetric:
-        metric = KRLMetric()
-        
+    ):
+        self.example_cnt += predictions.size(0)
         if MetricEnum.MRR in self.metrics:
-            metric.mrr = cal_mrr(predictions, ground_truth_idx)
+            self._mrr_sum += cal_mrr(predictions, ground_truth_idx)
         if MetricEnum.HITS_AT_1 in self.metrics:
-            metric.hits_at_1 = cal_hits_at_k(predictions, ground_truth_idx, self.device, 1)
+            self._hits_at_1_sum += cal_hits_at_k(predictions, ground_truth_idx, self.device, 1)
         if MetricEnum.HITS_AT_3 in self.metrics:
-            metric.hits_at_3 = cal_hits_at_k(predictions, ground_truth_idx, self.device, 3)
+            self._hits_at_3_sum += cal_hits_at_k(predictions, ground_truth_idx, self.device, 3)
         if MetricEnum.HITS_AT_10 in self.metrics:
-            metric.hits_at_10 = cal_hits_at_k(predictions, ground_truth_idx, self.device, 10)
+            self._hits_at_10_sum += cal_hits_at_k(predictions, ground_truth_idx, self.device, 10)
+    
+    def export_metrics(self) -> RankMetric:
+        """
+        Export the metric result stored in evaluator
+        """
+        result = RankMetric(
+            mrr=None if MetricEnum.MRR not in self.metrics else self._percentage(self._mrr_sum),
+            hits_at_1=None if MetricEnum.HITS_AT_1 not in self.metrics else self._percentage(self._hits_at_1_sum),
+            hits_at_3=None if MetricEnum.HITS_AT_3 not in self.metrics else self._percentage(self._hits_at_3_sum),
+            hits_at_10=None if MetricEnum.HITS_AT_10 not in self.metrics else self._percentage(self._hits_at_10_sum)
+        )
+        return result
 
-        return metric
+    def _percentage(self, sum):
+        return sum / self.example_cnt * 100

@@ -23,7 +23,7 @@ class KRLMetricBase(BaseModel, ABC):
     pass
 
 
-class KRLMetric(KRLMetricBase):
+class RankMetric(KRLMetricBase):
     mrr: Optional[float]
     hits_at_1: Optional[float]
     hits_at_3: Optional[float]

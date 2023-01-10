@@ -12,7 +12,7 @@ from config import TrainConf, HyperParam, DatasetConf
 from negative_sampler import NegativeSampler
 import storage
 from evaluator import RankEvaluator
-from metric import KRLMetric, MetricEnum
+from metric import RankMetric, MetricEnum
 
 
 
@@ -48,19 +48,13 @@ class KRLTrainer(ABC):
                       dataloder: DataLoader,
                       ent_num: int,
                       evaluator: RankEvaluator,
-                      ) -> KRLMetric:
+                      ) -> RankMetric:
         """
         Run the inference process on the KRL model.
         
         Rewrite this function if you need more logic for the training model.
         The implementation here just provides an example of training TransE.
         """
-        metric_result = KRLMetric()
-        # make the metric which we want to calculate to 0.
-        for m in evaluator.metrics:
-            setattr(metric_result, m.value, 0.0)
-        examples_count = 0
-        
         model = self.model
         device = self.device
         
@@ -86,17 +80,9 @@ class KRLTrainer(ABC):
             predictions = torch.cat([tails_predictions, heads_predictions], dim=0)  # predictions: [batch_size * 2, ent_num]
             ground_truth_entity_id = torch.cat([tails.reshape(-1, 1), heads.reshape(-1, 1)], dim=0)  # [batch_size * 2, 1]
             # calculate metrics
-            cur_metric = evaluator.evaluate(predictions, ground_truth_entity_id)
-            # sum the cur_metric into metric_result
-            for m in evaluator.metrics:
-                v = getattr(cur_metric, m.value) + getattr(metric_result, m.value)  # new_value = cur_value + old_value
-                setattr(metric_result, m.value, v)  # reset to new_value
-            
-            examples_count += predictions.size()[0]
-        
-        for m in evaluator.metrics:  # 遍历所要计算的每一个 metric
-            score = getattr(metric_result, m.value) / examples_count * 100
-            setattr(metric_result, m.value, score)
+            evaluator.evaluate(predictions, ground_truth_entity_id)
+
+        metric_result = evaluator.export_metrics()  # get result from evaluator
         return metric_result
     
     @abstractmethod
@@ -164,6 +150,7 @@ class TransETrainer(KRLTrainer):
                 model.eval()
                 with torch.no_grad():
                     ent_num = len(self.entity2id)
+                    evaluator.clear()  # clear the evaluator
                     metric = self.run_inference(self.valid_dataloader, ent_num, evaluator)
                     hits_at_10 = metric.hits_at_10
                     if hits_at_10 > best_score:
@@ -215,6 +202,7 @@ class RescalTrainer(KRLTrainer):
                 model.eval()
                 with torch.no_grad():
                     ent_num = len(self.entity2id)
+                    evaluator.clear()
                     metric = self.run_inference(self.valid_dataloader, ent_num, evaluator)
                     hits_at_10 = metric.hits_at_10
                     if hits_at_10 > best_score:

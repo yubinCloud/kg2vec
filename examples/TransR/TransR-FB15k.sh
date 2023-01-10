@@ -2,7 +2,7 @@
 
 cd ..  # /examples/
 cd ../krl  # /krl
-python app.py TransR train --dataset-name "FB15k"\
+python typer_app.py TransR train --dataset-name "FB15k"\
     --base-dir /root/yubin/dataset/KRL/master/FB15k \
     --batch-size 4800 \
     --valid-batch-size 32 \

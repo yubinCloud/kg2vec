@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import Any
 
-from metric import KRLMetricBase, KRLMetric
+from metric import KRLMetricBase, RankMetric
 from config import DatasetConf
 
 
@@ -30,7 +30,7 @@ class StringFormatter(MetricFormatter):
     """
     Convert the metric into string.
     """
-    def convert(self, metric: KRLMetric, dataset_conf: DatasetConf) -> str:
+    def convert(self, metric: RankMetric, dataset_conf: DatasetConf) -> str:
         return _STRING_TEMPLATE.format(
             dataset_name=dataset_conf.dataset_name,
             hits_at_1=metric.hits_at_1,
