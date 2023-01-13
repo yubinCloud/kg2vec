@@ -4,6 +4,13 @@ Reproduceing the models of Knowledge Representation Learning (KRL), such as Tran
 
 Don't use this repo because I am developing it. So it must suffer broken changes in future.
 
+The overview structure of this liberary is blow:
+
+<h3 align="center">
+    <img src="images/structure.png">
+</h3>
+
+
 ## How to use it?
 
 You can use it by cloning this repo and modify some codes to reproduce what you want.
