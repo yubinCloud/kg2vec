@@ -64,6 +64,29 @@ class Evaluator(ABC):
         :return: _description_
         """
         pass
+    
+    @abstractmethod
+    def clear(self):
+        """
+        Clear this evaluator for reusing.
+        """
+        pass
+    
+    @abstractmethod
+    def reset_metrics(self, metrics: List[MetricEnum]):
+        """
+        reset the metrics that you want to calculate.
+        
+        :param metrics: the metric list.
+        :type metrics: List[MetricEnum]
+        """
+        pass
+    
+    def export_metrics(self) -> KRLMetricBase:
+        """
+        export the metric result stored in evaluator.
+        """
+        pass
 
 
 class RankEvaluator(Evaluator):
@@ -102,7 +125,7 @@ class RankEvaluator(Evaluator):
         self._hits_at_3_sum = None if MetricEnum.HITS_AT_3 not in self.metrics else 0
         self._hits_at_10_sum = None if MetricEnum.HITS_AT_10 not in self.metrics else 0
     
-    def reset_metrics(self, metrics):
+    def reset_metrics(self, metrics: List[MetricEnum]):
         for m in metrics:
             if m not in RankEvaluator._SUPPORT_METRICS:
                 raise NotImplementedError(f"Evaluator don't support metric: {m.value}")
