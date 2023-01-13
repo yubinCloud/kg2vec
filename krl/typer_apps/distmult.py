@@ -2,7 +2,7 @@ from pathlib import Path
 import typer
 
 from config import DatasetConf, TrainConf
-from models.distmult import DistMultHyperParam, DistMultMain
+from models.DistMult import DistMultHyperParam, DistMultMain
 import utils
 
 

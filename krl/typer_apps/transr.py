@@ -2,7 +2,7 @@ from pathlib import Path
 import typer
 
 from config import DatasetConf, TrainConf
-from models.transr import TransRHyperParam, TransRMain
+from models.TransR import TransRHyperParam, TransRMain
 import utils
 
 

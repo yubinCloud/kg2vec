@@ -2,7 +2,7 @@ from pathlib import Path
 import typer
 
 from config import DatasetConf, TrainConf
-from models.rescal import RescalHyperParam, RescalMain
+from models.RESCAL import RescalHyperParam, RescalMain
 import utils
 
 

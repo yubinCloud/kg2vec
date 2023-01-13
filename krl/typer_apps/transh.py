@@ -2,7 +2,7 @@ from pathlib import Path
 import typer
 
 from config import DatasetConf, TrainConf
-from models.transh import TransHHyperParam, TransHMain
+from models.TransH import TransHHyperParam, TransHMain
 import utils
 
 
