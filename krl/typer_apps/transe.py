@@ -10,20 +10,20 @@ app = typer.Typer()
 
 @app.command(name='train')
 def train_transe(
-        dataset_name: str = typer.Option(...),
-        base_dir: Path = typer.Option(...),
-        batch_size: int = typer.Option(...),
-        valid_batch_size: int = typer.Option(...),
-        valid_freq: int = typer.Option(...),
-        lr: float = typer.Option(...),
-        optimizer: str = typer.Option('adam'),
-        epoch_size: int = typer.Option(...),
-        embed_dim: int = typer.Option(...),
-        norm: int = typer.Option(...),
-        margin: float = typer.Option(...),
-        ckpt_path: Path = typer.Option(...),
-        metric_result_path: Path = typer.Option(...)
-    ):
+    dataset_name: str = typer.Option(...),
+    base_dir: Path = typer.Option(...),
+    batch_size: int = typer.Option(...),
+    valid_batch_size: int = typer.Option(...),
+    valid_freq: int = typer.Option(...),
+    lr: float = typer.Option(...),
+    optimizer: str = typer.Option('adam'),
+    epoch_size: int = typer.Option(...),
+    embed_dim: int = typer.Option(...),
+    norm: int = typer.Option(...),
+    margin: float = typer.Option(...),
+    ckpt_path: Path = typer.Option(...),
+    metric_result_path: Path = typer.Option(...)
+):
     if not base_dir.exists():
         print("base_dir doesn't exists.")
         raise typer.Exit()
