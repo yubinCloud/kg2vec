@@ -2,6 +2,8 @@ import torch
 import torch.optim as optim
 from torch.utils.data import DataLoader
 from typing import Dict, Tuple
+import numpy as np
+import random
 
 from base_model import KRLModel
 from dataset import DatasetConf, KRLDataset
@@ -25,6 +27,15 @@ def create_optimizer(optimizer_name: str, model: KRLModel, lr: float) -> optim.O
 
 def get_device() -> torch.device:
     return torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
+
+
+def set_seed(seed: int):
+    random.seed(seed)
+    torch.manual_seed(seed)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed(seed)
+        torch.cuda.manual_seed_all(seed)  
+    np.random.seed(seed)
 
 
 def create_dataloader(

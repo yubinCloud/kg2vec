@@ -56,7 +56,7 @@ class DistMult(KRLModel):
         self.rel_embedding = nn.Embedding(self.rel_num, self.embed_dim)
         nn.init.xavier_uniform_(self.rel_embedding.weight.data)
         
-        self.criterion = nn.MSELoss()  # 当数据的 neg_sample label 为 0 时用这个       
+        self.criterion = nn.MSELoss()  # 当数据的 neg_sample label 为 0 时用这个
         # self.criterion = lambda preds, labels: F.softplus(preds * labels).mean()  # neg_sample label 为 -1 时用这个  
 
     
