@@ -1,0 +1,3 @@
+pytorch
+typer[all]
+pydantic

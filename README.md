@@ -32,12 +32,16 @@ The example `./transe.ipynb` is a good tutorial for reproduce the TransE if you 
 
 | Status |  Model   | Year | Paper  | Rewarks |
 |  :----:  | :----:  | :----: | :--- | --- |
-| :heavy_check_mark:  | RESCAL | 2011 | ICML'11, [OpenReview](https://openreview.net/forum?id=H14QEiZ_WS) | |
+| :heavy_check_mark:  | [RESCAL](/krl/models/RESCAL.py) | 2011 | ICML'11, [OpenReview](https://openreview.net/forum?id=H14QEiZ_WS) | |
 | :heavy_check_mark:  | TransE | 2013 | NIPS'13, [ACM](http://dl.acm.org/doi/10.5555/2999792.2999923) | |
 | :heavy_check_mark:  | TransH | 2014 | AAAI'14, [ReasearchGate](https://www.researchgate.net/publication/319207032_Knowledge_Graph_Embedding_by_Translating_on_Hyperplanes) | |
 | :heavy_check_mark: | DistMult | 2014 | ICLR'15, [arXiv](http://arxiv.org/abs/1412.6575) | |
 | :heavy_check_mark: | TransR | 2015 | AAAI'15, [AAAI](https://ojs.aaai.org/index.php/AAAI/article/view/9491) | a low performance, but I don't know why. |
 | :white_circle: | TransD | 2015 | ACL-IJCNLP 2015, [Aclanthology](https://aclanthology.org/P15-1067) | |
+| :white_circle: | TransA | 2015 | [arXiv](https://arxiv.org/abs/1509.05490) |  |
+| :white_circle: | TransG | 2015 | [arXiv](https://arxiv.org/abs/1509.05488) |  |
+| :white_circle: | KG2E | 2015 | CIKM'15, [ACM](https://dl.acm.org/doi/10.1145/2806416.2806502) |  |
+| :white_circle: | TranSparse | 2016 | AAAI'16, [AAAI](https://www.aaai.org/ocs/index.php/AAAI/AAAI16/paper/view/11982) | |
 | :white_circle: | TransF | 2016 | AAAI'16, [AAAI](https://www.aaai.org/ocs/index.php/KR/KR16/paper/view/12887) | |
 | :white_circle: | ComplEx | 2016 | ICML'16, [arXiv](http://arxiv.org/abs/1606.06357) | |
 | :white_circle: | HolE | 2016 | AAAI'16, [arXiv](http://arxiv.org/abs/1510.04935) | |
