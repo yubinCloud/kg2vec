@@ -1,10 +1,12 @@
 # KRL
 
-Reproduceing the models of Knowledge Representation Learning (KRL), such as TransE, TransH etc.
+This is a framework that uses PyTorch to reproduce Knowledge Representation Learning (KRL) models. With it, you can easily run models of knowledge representation learning, while quickly implementing your ideas after making simple changes or extensions.
 
-Don't use this repo because I am developing it. So it must suffer broken changes in future.
+Currently, we have implemented several knowledge representation learning models including **TransE**, **RESCAL**, and simple abstraction and decoupling of publicly reusable code.
 
-The overview structure of this liberary is blow:
+Don't use this repo because I am developing it. So it must suffer broken changes in the future.
+
+The overview structure of this library is below:
 
 <h3 align="center">
     <img src="images/structure.png">
@@ -13,9 +15,7 @@ The overview structure of this liberary is blow:
 
 ## How to use it?
 
-You can use it by cloning this repo and modify some codes to reproduce what you want.
-
-The call to the training code has been warpped through [Typer](https://typer.tiangolo.com/), which is a great tools for building CLIs. So we can call the training code by CLIs. The examples can be found in directory `./examples`.
+If you just want to use the models directly, then **you just need to run the sample scripts located in the directory** `./examples` and all you need to do is change a few parameters that you want to change. The call to the training code has been wrapped through [Typer](https://typer.tiangolo.com/), which is a great tool for building CLIs. So we can call the training code by CLIs. The examples can be found in the directory `./examples`.
 
 Example:
 
@@ -24,9 +24,17 @@ cd ./examples
 sh transe.sh
 ```
 
-+ Notice: Before you run this script, you should download the dataset, such as FB15k, and modify the script for choosing the path of dataset and checkpoints.
+If you are trying to make some changes or innovations, then you may need to briefly understand the logic of how this library works. Fortunately, the code is cleanly wrapped and decoupled, which makes it easy for you to understand the logic of the entire program and make changes to parts of it.
 
-The example `./transe.ipynb` is a good tutorial for reproduce the TransE if you want to know the structure of this repo. This tutorial can be run without any dependencies, except for the use of common third-party libraries like PyTorch and Numpy.
+First, run through the `transe.ipynb` notebook in the project root directory and you will get to know the core logic of the library. Therefore, successfully running through this notebook is the first step to using the project.
+This notebook replicates the operation of the **TransE** model.
+
+In this real program library, there is still a difference between the running logic of a model and the logic in a notebook. To realize the reuse of module code, the program library again abstracts and encapsulates part of the program code, but this does not change the core idea of the model operation.
+
+
++ Notice: Before you run this script, you should download the dataset, such as FB15k, and modify the script for choosing the path of the dataset and checkpoints.
+
+The example `./transe.ipynb` is a good tutorial for reproducing the TransE if you want to know the structure of this repo. This tutorial can be run without any dependencies, except for the use of common third-party libraries like PyTorch and Numpy.
 
 ## Plan
 
@@ -54,3 +62,8 @@ The example `./transe.ipynb` is a good tutorial for reproduce the TransE if you 
 | :white_circle: | ConvR | 2019 | NAACL-HLT 2019, [Aclanthology](https://aclanthology.org/N19-1103) | |
 | :white_circle: | KG-BERT | 2019 | [arXiv](http://arxiv.org/abs/1909.03193) | |
 | :white_circle: | PairRE | 2021 | ACL-IJCNLP 2021, [Aclanthology](https://aclanthology.org/2021.acl-long.336) | |
+
+
+## How to contribute it?
+
+If you have read the code of this project, then you should have understood the code style of this library. All you need to do is to extend it as you see fit and submit pull requests after successful testing.
