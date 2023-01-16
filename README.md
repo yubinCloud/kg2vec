@@ -36,6 +36,13 @@ In this real program library, there is still a difference between the running lo
 
 The example `./transe.ipynb` is a good tutorial for reproducing the TransE if you want to know the structure of this repo. This tutorial can be run without any dependencies, except for the use of common third-party libraries like PyTorch and Numpy.
 
+## Dataset
+
+In this paper, the different types of datasets are uniformly encapsulated in the `KRLDataset` class. But the data in the dataset needs to be downloaded by you and the disk path to the dataset needs to be specified when generating the configuration instance.
+
+You can download the dataset here: [KGDataset](https://github.com/ZhenfengLei/KGDatasets).
+
+
 ## Plan
 
 | Status |  Model   | Year | Paper  | Rewarks |
