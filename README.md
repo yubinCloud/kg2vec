@@ -41,10 +41,10 @@ The example `./transe.ipynb` is a good tutorial for reproducing the TransE if yo
 | Status |  Model   | Year | Paper  | Rewarks |
 |  :----:  | :----:  | :----: | :--- | --- |
 | :heavy_check_mark:  | [RESCAL](/krl/models/RESCAL.py) | 2011 | ICML'11, [OpenReview](https://openreview.net/forum?id=H14QEiZ_WS) | |
-| :heavy_check_mark:  | TransE | 2013 | NIPS'13, [ACM](http://dl.acm.org/doi/10.5555/2999792.2999923) | |
-| :heavy_check_mark:  | TransH | 2014 | AAAI'14, [ReasearchGate](https://www.researchgate.net/publication/319207032_Knowledge_Graph_Embedding_by_Translating_on_Hyperplanes) | |
-| :heavy_check_mark: | DistMult | 2014 | ICLR'15, [arXiv](http://arxiv.org/abs/1412.6575) | |
-| :heavy_check_mark: | TransR | 2015 | AAAI'15, [AAAI](https://ojs.aaai.org/index.php/AAAI/article/view/9491) | a low performance, but I don't know why. |
+| :heavy_check_mark:  | [TransE](/krl/models/TransE.py) | 2013 | NIPS'13, [ACM](http://dl.acm.org/doi/10.5555/2999792.2999923) | |
+| :heavy_check_mark:  | [TransH](/krl/models/TransH.py) | 2014 | AAAI'14, [ReasearchGate](https://www.researchgate.net/publication/319207032_Knowledge_Graph_Embedding_by_Translating_on_Hyperplanes) | |
+| :heavy_check_mark: | [DistMult](/krl/models/DistMult.py) | 2014 | ICLR'15, [arXiv](http://arxiv.org/abs/1412.6575) | |
+| :heavy_check_mark: | [TransR](/krl/models/TransR.py) | 2015 | AAAI'15, [AAAI](https://ojs.aaai.org/index.php/AAAI/article/view/9491) | a low performance, but I don't know why. |
 | :white_circle: | TransD | 2015 | ACL-IJCNLP 2015, [Aclanthology](https://aclanthology.org/P15-1067) | |
 | :white_circle: | TransA | 2015 | [arXiv](https://arxiv.org/abs/1509.05490) |  |
 | :white_circle: | TransG | 2015 | [arXiv](https://arxiv.org/abs/1509.05488) |  |
