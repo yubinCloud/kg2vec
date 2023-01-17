@@ -1,3 +1,4 @@
 pytorch
 typer[all]
 pydantic
+loguru

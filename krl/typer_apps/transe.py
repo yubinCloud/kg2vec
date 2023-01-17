@@ -29,7 +29,7 @@ def train_transe(
         raise typer.Exit()
     dataset_conf = DatasetConf(
         dataset_name=dataset_name,
-        base_dir=base_dir.absolute().as_posix()
+        base_dir=base_dir
     )
     train_conf = TrainConf(
         checkpoint_path=ckpt_path.absolute().as_posix(),

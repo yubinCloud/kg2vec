@@ -18,7 +18,10 @@ def create_mapping(dataset_conf: DatasetConf) -> Tuple[EntityMapping, RelMapping
     """
     # 读取 entity2id
     entity2id = dict()
-    with open(dataset_conf.base_dir + dataset_conf.entity2id_path) as f:
+    entity2id_path = dataset_conf.base_dir / dataset_conf.entity2id_path
+    if not entity2id_path.exists():
+        raise FileNotFoundError(f'{entity2id_path} not found.')
+    with entity2id_path.open() as f:
         for line in f:
             entity, entity_id = line.split()
             entity = entity.strip()
@@ -26,7 +29,10 @@ def create_mapping(dataset_conf: DatasetConf) -> Tuple[EntityMapping, RelMapping
             entity2id[entity] = entity_id
     # 读取 relation2id
     rel2id = dict()
-    with open(dataset_conf.base_dir + dataset_conf.relation2id_path) as f:
+    rel2id_path = dataset_conf.base_dir / dataset_conf.relation2id_path
+    if not rel2id_path.exists():
+        raise FileNotFoundError(f'{rel2id_path} not found.')
+    with rel2id_path.open() as f:
         for line in f:
             rel, rel_id = line.split()
             rel = rel.strip()
@@ -43,6 +49,8 @@ class KRLDataset(Dataset):
                  rel2id: Dict[str, int]) -> None:
         super().__init__()
         self.conf = dataset_conf
+        if mode not in {'train', 'valid', 'test'}:
+            raise ValueError(f'dataset mode not support:{mode} mode')
         self.mode = mode
         self.triples = []
         self.entity2id = entity2id
@@ -67,7 +75,10 @@ class KRLDataset(Dataset):
             'valid': self.conf.valid_path,
             'test': self.conf.test_path
         }.get(self.mode)
-        with open(self.conf.base_dir + data_path) as f:
+        p = self.conf.base_dir / data_path
+        if not p.exists():
+            raise FileNotFoundError(f'{p} not found.')
+        with p.open() as f:
             self.triples = [self._split_and_to_id(line) for line in f]
     
     def __len__(self):
