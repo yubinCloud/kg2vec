@@ -131,3 +131,6 @@ dmypy.json
 # Run my scripts
 my-scripts/
 nohup.out
+
+# pytorch lightning
+lightning_logs/
