@@ -6,8 +6,8 @@ Reference:
 import torch
 import torch.nn as nn
 
-from config import HyperParam
-from base_model import KRLModel
+from ..config import HyperParam
+from ..base_model import KRLModel
 
 
 class TransDHyperParam(HyperParam):

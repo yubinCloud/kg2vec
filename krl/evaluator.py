@@ -2,7 +2,7 @@ import torch
 from abc import ABC, abstractmethod
 from typing import List
 
-from metric import KRLMetricBase, RankMetric, MetricEnum
+from .metric import KRLMetricBase, RankMetric, MetricEnum
 
 
 def cal_hits_at_k(predictions: torch.Tensor,

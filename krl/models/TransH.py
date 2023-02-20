@@ -11,17 +11,17 @@ import torch.nn.functional as F
 from torch.utils.data import DataLoader
 from pydantic import Field
 
-from base_model import KRLModel, ModelMain
-from config import TransHyperParam, DatasetConf, TrainConf
-from dataset import create_mapping, KRLDataset
-from negative_sampler import BernNegSampler
-import utils
-from trainer import TransETrainer
-from metric import MetricEnum
-from evaluator import RankEvaluator
-import storage
-from metric_fomatter import StringFormatter
-from serializer import FileSerializer
+from ..base_model import XTransEModel, ModelMain
+from ..config import TransHyperParam, LocalDatasetConf, TrainConf
+from ..dataset import create_mapping, LocalKRLDataset
+from ..negative_sampler import BernNegSampler
+from .. import utils
+from ..trainer import TransETrainer
+from ..metric import MetricEnum
+from ..evaluator import RankEvaluator
+from .. import storage
+from ..metric_fomatter import StringFormatter
+from ..serializer import FileSerializer
 
 
 class TransHHyperParam(TransHyperParam):
@@ -33,7 +33,7 @@ class TransHHyperParam(TransHyperParam):
     eps: float = Field(default=1e-3, description='the $\episilon$ in loss function')
 
 
-class TransH(KRLModel):
+class TransH(XTransEModel):
     def __init__(
         self,
         ent_num: int,
@@ -171,7 +171,7 @@ class TransH(KRLModel):
 class TransHMain(ModelMain):
     def __init__(
         self,
-        dataset_conf: DatasetConf,
+        dataset_conf: LocalDatasetConf,
         train_conf: TrainConf,
         hyper_params: TransHHyperParam,
         device: torch.device
@@ -189,7 +189,7 @@ class TransHMain(ModelMain):
         rel_num = len(rel2id)
         
         # create dataset and dataloader
-        train_dataset, train_dataloader, valid_dataset, valid_dataloader = utils.create_dataloader(self.dataset_conf, self.hyper_params, entity2id, rel2id)
+        train_dataset, train_dataloader, valid_dataset, valid_dataloader = utils.create_local_dataloader(self.dataset_conf, self.hyper_params, entity2id, rel2id)
     
         # create negative-sampler
         neg_sampler = BernNegSampler(train_dataset, self.device)
@@ -235,7 +235,7 @@ class TransHMain(ModelMain):
         model.load_state_dict(ckpt.model_state_dict)
         model = model.to(self.device)
         # create test-dataset
-        test_dataset = KRLDataset(self.dataset_conf, 'test', entity2id, rel2id)
+        test_dataset = LocalKRLDataset(self.dataset_conf, 'test', entity2id, rel2id)
         test_dataloder = DataLoader(test_dataset, self.hyper_params.valid_batch_size)
         # run inference on test-dataset
         metric = trainer.run_inference(test_dataloder, ent_num, evaluator)

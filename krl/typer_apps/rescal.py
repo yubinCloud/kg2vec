@@ -1,9 +1,10 @@
 from pathlib import Path
 import typer
 
-from config import DatasetConf, TrainConf
-from models.RESCAL import RescalHyperParam, RescalMain
-import utils
+from ..config import TrainConf
+from ..models.RESCAL import RescalHyperParam, RescalMain
+from .. import utils
+from ..dataset import load_krl_dataset
 
 
 app = typer.Typer()
@@ -11,27 +12,20 @@ app = typer.Typer()
 
 @app.command(name='train')
 def train_rescal(
-    dataset_name: str = typer.Option(...),
-    base_dir: Path = typer.Option(...),
-    batch_size: int = typer.Option(...),
-    valid_batch_size: int = typer.Option(...),
-    valid_freq: int = typer.Option(...),
-    lr: float = typer.Option(...),
-    epoch_size: int = typer.Option(...),
+    dataset_name: str = typer.Option('FB15k'),
+    batch_size: int = typer.Option(256),
+    valid_batch_size: int = typer.Option(16),
+    valid_freq: int = typer.Option(5),
+    lr: float = typer.Option(0.01),
+    epoch_size: int = typer.Option(200),
     optimizer: str = typer.Option('adam'),
-    embed_dim: int = typer.Option(...),
+    embed_dim: int = typer.Option(50),
     alpha: float = typer.Option(0.001, help='regularization parameter'),
     regul_type: str = typer.Option('F2', help='regularization type, F2 or N3', case_sensitive=False),
-    ckpt_path: Path = typer.Option(...),
-    metric_result_path: Path = typer.Option(...)
+    ckpt_path: Path = typer.Option(Path('/root/sharespace/yubin/papers/KRL/scratch/TransX/tmp/rescal_fb15k.ckpt')),
+    metric_result_path: Path = typer.Option(Path('/root/sharespace/yubin/papers/KRL/scratch/TransX/tmp/rescal_fb15k_metrics.txt'))
 ):
-    if not base_dir.exists():
-        print("base_dir doesn't exists.")
-        raise typer.Exit()
-    dataset_conf = DatasetConf(
-        dataset_name=dataset_name,
-        base_dir=base_dir
-    )
+    dataset_dict = load_krl_dataset(dataset_name)
     train_conf = TrainConf(
         checkpoint_path=ckpt_path.absolute().as_posix(),
         metric_result_path=metric_result_path.absolute().as_posix()
@@ -49,6 +43,6 @@ def train_rescal(
     )
     device = utils.get_device()
     
-    main = RescalMain(dataset_conf, train_conf, hyper_params, device)
+    main = RescalMain(dataset_dict, train_conf, hyper_params, device)
     
     main()

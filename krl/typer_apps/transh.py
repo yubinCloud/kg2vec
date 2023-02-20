@@ -1,9 +1,9 @@
 from pathlib import Path
 import typer
 
-from config import DatasetConf, TrainConf
-from models.TransH import TransHHyperParam, TransHMain
-import utils
+from ..config import LocalDatasetConf, TrainConf
+from ..models.TransH import TransHHyperParam, TransHMain
+from .. import utils
 
 
 app = typer.Typer()
@@ -31,7 +31,7 @@ def train_tranh(
         print("base_dir doesn't exists.")
         raise typer.Exit()
     # initialize all configurations
-    dataset_conf = DatasetConf(
+    dataset_conf = LocalDatasetConf(
         dataset_name=dataset_name,
         base_dir=base_dir
     )

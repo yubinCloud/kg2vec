@@ -2,22 +2,47 @@
 用于填写配置信息的 Settings
 """
 
-from pydantic import BaseSettings, BaseModel, Field
+from pydantic import BaseModel, Field
 from abc import ABC
 from pathlib import Path
+from typing import Optional
 
 
-class DatasetConf(BaseSettings):
-    """
-    数据集的相关配置信息
-    """
+######## Dataset config ########
+
+
+class DatasetConf(BaseModel, ABC):
     dataset_name: str = Field(title='数据集的名称，方便打印时查看')
-    base_dir: Path = Field(title='数据集的目录')
-    entity2id_path: str = Field(default='entity2id.txt', title='entity2id 的文件名')
-    relation2id_path: str = Field(default='relation2id.txt', title='relation2id 的文件名')
-    train_path: str = Field(default='train.txt', title='training set 的文件')
-    valid_path: str = Field(default='valid.txt', title='valid set 的文件')
-    test_path: str = Field(default='test.txt', title='testing set 的文件')
+
+
+class BuiletinDatasetConf(DatasetConf):
+    """
+    内置的数据集的相关配置信息
+    """
+    source: str = Field(title='数据集的来源')
+
+
+class BuiletinHuggingfaceDatasetConf(BuiletinDatasetConf):
+    """
+    存放于 Hugging Face datasets 上的数据集 
+    :param BuiletinDatasetConf: _description_
+    """
+    huggingface_repo: str = Field(title='Hugging Face 中存放该数据集的 repo')
+
+
+class LocalDatasetConf(DatasetConf):
+    """
+    存放于本地的数据集的相关配置信息
+    """
+    base_dir: Optional[Path] = Field(title='数据集的目录')
+    entity2id_path: Optional[str] = Field(default='entity2id.txt', title='entity2id 的文件名')
+    relation2id_path: Optional[str] = Field(default='relation2id.txt', title='relation2id 的文件名')
+    train_path: Optional[str] = Field(default='train.txt', title='training set 的文件')
+    valid_path: Optional[str] = Field(default='valid.txt', title='valid set 的文件')
+    test_path: Optional[str] = Field(default='test.txt', title='testing set 的文件')
+
+
+######## Hyper-parameters config ########
 
 
 class HyperParam(BaseModel, ABC):
@@ -30,6 +55,9 @@ class HyperParam(BaseModel, ABC):
     optimizer: str = Field(defualt='adam', title='optimizer name')
     epoch_size: int = 500
     valid_freq: int = Field(defualt=5, title='训练过程中，每隔多少次就做一次 valid 来验证是否保存模型')
+
+
+######## Training config ########
 
 
 class TrainConf(BaseModel):

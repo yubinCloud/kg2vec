@@ -14,17 +14,17 @@ from torch.utils.data import DataLoader
 from pydantic import Field
 from typing import Literal
 
-from base_model import KRLModel, ModelMain
-from config import HyperParam, DatasetConf, TrainConf
-from dataset import create_mapping, KRLDataset
-from negative_sampler import BernNegSampler
-import utils
-from trainer import RescalTrainer
-from metric import MetricEnum
-from evaluator import RankEvaluator
-import storage
-from metric_fomatter import StringFormatter
-from serializer import FileSerializer
+from ..base_model import KRLModel, ModelMain
+from ..config import HyperParam, TrainConf
+from ..dataset import KRLDatasetDict
+from ..negative_sampler import BernNegSampler
+from .. import utils
+from ..trainer import RescalTrainer
+from ..metric import MetricEnum
+from ..evaluator import RankEvaluator
+from .. import storage
+from ..metric_fomatter import StringFormatter
+from ..serializer import FileSerializer
 
 
 class RescalHyperParam(HyperParam):
@@ -147,41 +147,46 @@ class RESCAL(KRLModel):
 class RescalMain(ModelMain):
     def __init__(
         self,
-        dataset_conf: DatasetConf,
+        dataset: KRLDatasetDict,
         train_conf: TrainConf,
         hyper_params: RescalHyperParam,
         device: torch.device
     ) -> None:
         super().__init__()
-        self.dataset_conf = dataset_conf
+        self.datasets = dataset
+        self.dataset_conf = dataset.dataset_conf
         self.train_conf = train_conf
-        self.hyper_params = hyper_params
+        self.params = hyper_params
         self.device = device
     
     def __call__(self):
         # create mapping
-        entity2id, rel2id = create_mapping(self.dataset_conf)
+        entity2id = self.datasets.entity2id
+        rel2id = self.datasets.rel2id
         ent_num = len(entity2id)
         rel_num = len(rel2id)
         
         # create dataset and dataloader
-        train_dataset, train_dataloader, valid_dataset, valid_dataloader = utils.create_dataloader(self.dataset_conf, self.hyper_params, entity2id, rel2id)
+        train_dataset = self.datasets.train
+        train_dataloader = DataLoader(train_dataset, self.params.batch_size)
+        valid_dataset = self.datasets.valid
+        valid_dataloader = DataLoader(valid_dataset, self.params.batch_size)
     
         # create negative-sampler
         neg_sampler = BernNegSampler(train_dataset, self.device)
 
         # create model
-        model = RESCAL(ent_num, rel_num, self.device, self.hyper_params)
+        model = RESCAL(ent_num, rel_num, self.device, self.params)
         model = model.to(self.device)
         
         # create optimizer
-        optimizer = utils.create_optimizer(self.hyper_params.optimizer, model, self.hyper_params.learning_rate)
+        optimizer = utils.create_optimizer(self.params.optimizer, model, self.params.learning_rate)
     
         # create trainer
         trainer = RescalTrainer(
             model=model,
             train_conf=self.train_conf,
-            params=self.hyper_params,
+            params=self.params,
             dataset_conf=self.dataset_conf,
             entity2id=entity2id,
             rel2id=rel2id,
@@ -211,8 +216,8 @@ class RescalMain(ModelMain):
         model.load_state_dict(ckpt.model_state_dict)
         model = model.to(self.device)
         # create test-dataset
-        test_dataset = KRLDataset(self.dataset_conf, 'test', entity2id, rel2id)
-        test_dataloder = DataLoader(test_dataset, self.hyper_params.valid_batch_size)
+        test_dataset = self.datasets.test
+        test_dataloder = DataLoader(test_dataset, self.params.valid_batch_size)
         # run inference on test-dataset
         metric = trainer.run_inference(test_dataloder, ent_num, evaluator)
     

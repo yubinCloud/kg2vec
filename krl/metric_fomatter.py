@@ -1,8 +1,8 @@
 from abc import ABC, abstractmethod
 from typing import Any
 
-from metric import KRLMetricBase, RankMetric
-from config import DatasetConf
+from .metric import KRLMetricBase, RankMetric
+from .config import DatasetConf
 
 
 class MetricFormatter(ABC):

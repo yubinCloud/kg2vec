@@ -2,8 +2,8 @@
 from pydantic import BaseModel
 import torch
 
-from config import TrainConf, HyperParam
-from base_model import KRLModel
+from .config import TrainConf, HyperParam
+from .base_model import KRLModel
 
 class CheckpointFormat(BaseModel):
     model_state_dict: dict

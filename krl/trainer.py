@@ -4,15 +4,15 @@ KRLTrainer for training and testing models.
 from typing import Mapping
 import torch
 from torch.utils.data import DataLoader
-from rich.progress import track
+from rich.progress import Progress as RichProgress
 from abc import ABC, abstractmethod
 
-from base_model import KRLModel
-from config import TrainConf, HyperParam, DatasetConf
-from negative_sampler import NegativeSampler
-import storage
-from evaluator import RankEvaluator
-from metric import RankMetric, MetricEnum
+from .base_model import KRLModel
+from .config import TrainConf, HyperParam, DatasetConf
+from .negative_sampler import NegativeSampler
+from . import storage
+from .evaluator import RankEvaluator
+from .metric import RankMetric, MetricEnum
 
 
 
@@ -127,36 +127,43 @@ class TransETrainer(KRLTrainer):
         device = self.device
         optimzer = self.optimzer
         model = self.model
+        DATASET_LEN = len(self.train_dataloader.dataset)
         # prepare the tools for tarining
         best_score = 0.0
         evaluator = RankEvaluator(self.device, [MetricEnum.HITS_AT_10])
         # training loop
-        for epoch_id in track(range(1, self.params.epoch_size + 1), description='Total...'):
-            print("Starting epoch: ", epoch_id)
-            model.train()
-            for i, batch in enumerate(self.train_dataloader):
-                # get a batch of training data
-                pos_heads, pos_rels, pos_tails = batch[0].to(device), batch[1].to(device), batch[2].to(device)
-                pos_triples = torch.stack([pos_heads, pos_rels, pos_tails], dim=1)  # pos_triples: [batch_size, 3]
-                neg_triples = self.train_neg_sampler.neg_sample(pos_heads, pos_rels, pos_tails)  # neg_triples: [batch_size, 3]
-                optimzer.zero_grad()
-                # calculte loss
-                loss, _, _ = model(pos_triples, neg_triples)
-                loss.backward()
-                # update model
-                optimzer.step()
-            
-            if epoch_id % self.params.valid_freq == 0:
-                model.eval()
-                with torch.no_grad():
-                    ent_num = len(self.entity2id)
-                    evaluator.clear()  # clear the evaluator
-                    metric = self.run_inference(self.valid_dataloader, ent_num, evaluator)
-                    hits_at_10 = metric.hits_at_10
-                    if hits_at_10 > best_score:
-                        best_score = hits_at_10
-                        print('best score of valid: ', best_score)
-                        storage.save_checkpoint(model, optimzer, epoch_id, best_score, self.params, self.train_conf)
+        with RichProgress() as rich_progress:
+            train_task = rich_progress.add_task('[green]Total training...', total=self.params.epoch_size)
+            for epoch_id in range(1, self.params.epoch_size + 1):
+                epoch_task = rich_progress.add_task(f'[cyan]Epoch {epoch_id}', total=DATASET_LEN)
+                model.train()
+                for i, batch in enumerate(self.train_dataloader):
+                    # get a batch of training data
+                    pos_heads, pos_rels, pos_tails = batch[0].to(device), batch[1].to(device), batch[2].to(device)
+                    pos_triples = torch.stack([pos_heads, pos_rels, pos_tails], dim=1)  # pos_triples: [batch_size, 3]
+                    neg_triples = self.train_neg_sampler.neg_sample(pos_heads, pos_rels, pos_tails)  # neg_triples: [batch_size, 3]
+                    optimzer.zero_grad()
+                    # calculte loss
+                    loss, _, _ = model(pos_triples, neg_triples)
+                    loss.backward()
+                    # update model
+                    optimzer.step()
+                    rich_progress.update(epoch_task, advance=pos_triples.size(0))
+                rich_progress.remove_task(epoch_task)
+                
+                if epoch_id % self.params.valid_freq == 0:
+                    model.eval()
+                    with torch.no_grad():
+                        ent_num = len(self.entity2id)
+                        evaluator.clear()  # clear the evaluator
+                        metric = self.run_inference(self.valid_dataloader, ent_num, evaluator)
+                        hits_at_10 = metric.hits_at_10
+                        if hits_at_10 > best_score:
+                            best_score = hits_at_10
+                            print('best score of valid: ', best_score)
+                            storage.save_checkpoint(model, optimzer, epoch_id, best_score, self.params, self.train_conf)
+                        
+                rich_progress.update(train_task, advance=1)
 
 
 class RescalTrainer(KRLTrainer):
@@ -170,42 +177,49 @@ class RescalTrainer(KRLTrainer):
         device = self.device
         optimzer = self.optimzer
         model = self.model
+        DATASET_LEN = len(self.train_dataloader.dataset)
         # prepare tools for training
         best_score = 0.0
         evaluator = RankEvaluator(self.device, [MetricEnum.HITS_AT_10])
         # training loop
-        for epoch_id in track(range(1, self.params.epoch_size + 1), description='Total...'):
-            print("Starting epoch: ", epoch_id)
-            loss_sum = 0
-            model.train()
-            for batch in iter(self.train_dataloader):
-                pos_heads, pos_rels, pos_tails = batch[0].to(device), batch[1].to(device), batch[2].to(device)
-                pos_triples = torch.stack([pos_heads, pos_rels, pos_tails], dim=1)  # pos_triples: [batch_size, 3]
-                neg_triples = self.train_neg_sampler.neg_sample(pos_heads, pos_rels, pos_tails)  # neg_triples: [batch_size, 3]
-                triples = torch.cat([pos_triples, neg_triples])
-                pos_num = pos_triples.size(0)
-                total_num = triples.size(0)
-                labels = torch.zeros([total_num], device=device)
-                labels[0: pos_num] = 1  # the pos_triple label is equal to 1. 
-                shuffle_index = torch.randperm(total_num, device=device)  # index sequence for shuffling data
-                triples = triples[shuffle_index]
-                labels = labels[shuffle_index]
-                # calculate loss
-                optimzer.zero_grad()
-                loss, _ = model(triples, labels)
-                loss.backward()
-                loss_sum += loss.cpu().item()
-                # update model
-                optimzer.step()
-            
-            if epoch_id % self.params.valid_freq == 0:
-                model.eval()
-                with torch.no_grad():
-                    ent_num = len(self.entity2id)
-                    evaluator.clear()
-                    metric = self.run_inference(self.valid_dataloader, ent_num, evaluator)
-                    hits_at_10 = metric.hits_at_10
-                    if hits_at_10 > best_score:
-                        best_score = hits_at_10
-                        print('best score of valid: ', best_score)
-                        storage.save_checkpoint(model, optimzer, epoch_id, best_score, self.params, self.train_conf)
+        with RichProgress() as rich_progress:
+            train_task = rich_progress.add_task('[green]Total training...', total=self.params.epoch_size)
+            for epoch_id in range(1, self.params.epoch_size + 1):
+                epoch_task = rich_progress.add_task(f'[cyan]Epoch {epoch_id}', total=DATASET_LEN)
+                loss_sum = 0
+                model.train()
+                for batch in iter(self.train_dataloader):
+                    pos_heads, pos_rels, pos_tails = batch[0].to(device), batch[1].to(device), batch[2].to(device)
+                    pos_triples = torch.stack([pos_heads, pos_rels, pos_tails], dim=1)  # pos_triples: [batch_size, 3]
+                    neg_triples = self.train_neg_sampler.neg_sample(pos_heads, pos_rels, pos_tails)  # neg_triples: [batch_size, 3]
+                    triples = torch.cat([pos_triples, neg_triples])
+                    pos_num = pos_triples.size(0)
+                    total_num = triples.size(0)
+                    labels = torch.zeros([total_num], device=device)
+                    labels[0: pos_num] = 1  # the pos_triple label is equal to 1. 
+                    shuffle_index = torch.randperm(total_num, device=device)  # index sequence for shuffling data
+                    triples = triples[shuffle_index]
+                    labels = labels[shuffle_index]
+                    # calculate loss
+                    optimzer.zero_grad()
+                    loss, _ = model(triples, labels)
+                    loss.backward()
+                    loss_sum += loss.cpu().item()
+                    # update model
+                    optimzer.step()
+                    rich_progress.update(epoch_task, advance=pos_triples.size(0))
+                rich_progress.remove_task(epoch_task) 
+                
+                if epoch_id % self.params.valid_freq == 0:
+                    model.eval()
+                    with torch.no_grad():
+                        ent_num = len(self.entity2id)
+                        evaluator.clear()
+                        metric = self.run_inference(self.valid_dataloader, ent_num, evaluator)
+                        hits_at_10 = metric.hits_at_10
+                        if hits_at_10 > best_score:
+                            best_score = hits_at_10
+                            print('best score of valid: ', best_score)
+                            storage.save_checkpoint(model, optimzer, epoch_id, best_score, self.params, self.train_conf)
+                
+                rich_progress.update(train_task, advance=1)

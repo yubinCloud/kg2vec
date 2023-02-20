@@ -1,9 +1,9 @@
 from pathlib import Path
 import typer
 
-from config import DatasetConf, TrainConf
-from models.TransR import TransRHyperParam, TransRMain
-import utils
+from ..config import LocalDatasetConf, TrainConf
+from ..models.TransR import TransRHyperParam, TransRMain
+from .. import utils
 
 
 app = typer.Typer()
@@ -29,7 +29,7 @@ def train_transr(
     if not base_dir.exists():
         print("base_dir doesn't exists.")
         raise typer.Exit()
-    dataset_conf = DatasetConf(
+    dataset_conf = LocalDatasetConf(
         dataset_name=dataset_name,
         base_dir=base_dir
     )

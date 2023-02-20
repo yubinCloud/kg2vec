@@ -5,7 +5,6 @@ Base class for various KRL models.
 import torch.nn as nn
 import torch
 from abc import ABC, abstractmethod
-from typing import Any
 
 
 class KRLModel(nn.Module, ABC):
@@ -18,6 +17,12 @@ class KRLModel(nn.Module, ABC):
 
         :param triples: a batch of triples, which consists of (heads, rels, tails) id.
         :return: the embedding of (heads, rels, tails)
+        """
+        pass
+    
+    @abstractmethod
+    def loss(self):
+        """Return model losses based on the input.
         """
         pass
     
@@ -35,6 +40,10 @@ class KRLModel(nn.Module, ABC):
         :return: dissimilarity score for given triplets
         """
         pass
+
+
+class XTransEModel(KRLModel):
+    pass
 
 
 class ModelMain(ABC):

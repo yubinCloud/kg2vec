@@ -6,7 +6,7 @@ from torch.utils.data import DataLoader
 from abc import ABC, abstractmethod
 from typing import Optional
 
-from dataset import KRLDataset
+from .dataset import KRLDataset
 
 
 class NegativeSampler(ABC):
@@ -83,11 +83,12 @@ class BernNegSampler(NegativeSampler):
         return probs_of_replace_head
     
     def neg_sample(self, heads, rels, tails):
+        device = heads.device
         batch_size = heads.shape[0]
-        rands = torch.rand([batch_size], device=self.device)
+        rands = torch.rand([batch_size], device=device)
         probs = self.probs_of_replace_head[rels]
         head_or_tail = rands < probs  # True 的代表选择 head， False 的代表选择 tail
-        random_entities = torch.randint(high=self.ent_num, size=heads.size(), device=self.device)
+        random_entities = torch.randint(high=self.ent_num, size=heads.size(), device=device)
         corupted_heads = torch.where(head_or_tail == True, random_entities, heads)
         corupted_tails = torch.where(head_or_tail == False, random_entities, tails)
         return torch.stack([corupted_heads, rels, corupted_tails], dim=1)

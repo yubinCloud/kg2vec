@@ -1,8 +1,8 @@
 from abc import ABC, abstractmethod
 
-from config import TrainConf, DatasetConf
-from metric import KRLMetricBase, RankMetric
-from metric_fomatter import MetricFormatter, StringFormatter
+from .config import TrainConf, DatasetConf
+from .metric import KRLMetricBase, RankMetric
+from .metric_fomatter import MetricFormatter, StringFormatter
 
 
 class BaseSerializer(ABC):

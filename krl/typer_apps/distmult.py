@@ -1,9 +1,9 @@
 from pathlib import Path
 import typer
 
-from config import DatasetConf, TrainConf
-from models.DistMult import DistMultHyperParam, DistMultMain
-import utils
+from ..config import LocalDatasetConf, TrainConf
+from ..models.DistMult import DistMultHyperParam, DistMultMain
+from .. import utils
 
 
 
@@ -29,7 +29,7 @@ def train_distmult(
     if not base_dir.exists():
         print("base_dir doesn't exists")
         raise typer.Exit()
-    dataset_conf = DatasetConf(
+    dataset_conf = LocalDatasetConf(
         dataset_name=dataset_name,
         base_dir=base_dir
     )
