@@ -1,8 +1,9 @@
 import pytorch_lightning as pl
 import torch
+from torch.utils.data import DataLoader
 from typing import List, Any
 
-from ..base_model import XTransEModel
+from ..base_model import TransXBaseModel
 from ..config import HyperParam
 from ..negative_sampler import NegativeSampler
 from ..metric import HitsAtK, MRR
@@ -10,10 +11,10 @@ from ..dataset import KRLDatasetDict
 from .. import utils
 
 
-class XTransELitModel(pl.LightningModule):
+class TransXLitModel(pl.LightningModule):
     def __init__(
         self,
-        model: XTransEModel,
+        model: TransXBaseModel,
         dataset_dict: KRLDatasetDict,
         train_neg_sampler: NegativeSampler,
         hyper_params: HyperParam
@@ -44,33 +45,15 @@ class XTransELitModel(pl.LightningModule):
     
     def validation_step(self, batch: List[torch.Tensor], batch_idx: torch.Tensor):
         preds, target = self._get_preds_and_target(batch)
-        
-        return {
-            'preds': preds,
-            'target': target
-        }
-    
-    def validation_step_end(self, val_step_outputs: dict):
-        preds = val_step_outputs['preds']
-        target = val_step_outputs['target']
         self.val_hits10.update(preds, target)
     
     def validation_epoch_end(self, outputs: List[Any]) -> None:
         val_hits_at_10 = self.val_hits10.compute()
         self.val_hits10.reset()
-        self.log('val_hits_at_10', val_hits_at_10, logger=False)
+        self.log('val_hits_at_10', val_hits_at_10)
     
     def test_step(self, batch: List[torch.Tensor], batch_idx: torch.Tensor):
         preds, target = self._get_preds_and_target(batch)
-        
-        return {
-            'preds': preds,
-            'target': target
-        }
-    
-    def test_step_end(self, test_step_outputs: List[dict]):
-        preds = test_step_outputs['preds']
-        target = test_step_outputs['target']
         self.test_hits1.update(preds, target)
         self.test_hits10.update(preds, target)
         self.test_mrr.update(preds, target)
@@ -96,10 +79,28 @@ class XTransELitModel(pl.LightningModule):
             'optimizer': optimizer,
             'lr_scheduler': stepLR
         }
+    
+    def train_dataloader(self) -> DataLoader:
+        return DataLoader(
+            self.dataset_dict.train,
+            batch_size=self.params.batch_size
+        )
+    
+    def val_dataloader(self) -> DataLoader:
+        return DataLoader(
+            self.dataset_dict.valid,
+            batch_size=self.params.valid_batch_size
+        )
+    
+    def test_dataloader(self) -> DataLoader:
+        return DataLoader(
+            self.dataset_dict.test,
+            batch_size=self.params.valid_batch_size
+        )
         
     
     def _get_preds_and_target(self, batch: List[torch.Tensor]):
-        ent_num = len(self.dataset_dict.entity2id)
+        ent_num = len(self.dataset_dict.meta.entity2id)
         entity_ids = torch.arange(0, ent_num, device=self.device)
         entity_ids.unsqueeze_(0)
         heads, rels, tails = batch[0].to(self.device), batch[1].to(self.device), batch[2].to(self.device)

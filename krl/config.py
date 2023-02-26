@@ -5,7 +5,7 @@
 from pydantic import BaseModel, Field
 from abc import ABC
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Mapping
 
 
 ######## Dataset config ########
@@ -40,6 +40,13 @@ class LocalDatasetConf(DatasetConf):
     train_path: Optional[str] = Field(default='train.txt', title='training set 的文件')
     valid_path: Optional[str] = Field(default='valid.txt', title='valid set 的文件')
     test_path: Optional[str] = Field(default='test.txt', title='testing set 的文件')
+
+
+######## Dataset meta-data ########
+
+class KRLDatasetMeta(BaseModel):
+    entity2id: Mapping[str, int]
+    rel2id: Mapping[str, int]
 
 
 ######## Hyper-parameters config ########

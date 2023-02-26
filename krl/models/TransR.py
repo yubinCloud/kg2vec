@@ -14,7 +14,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.utils.data import DataLoader
 
-from ..base_model import XTransEModel, ModelMain
+from ..base_model import TransXBaseModel, ModelMain
 from ..config import HyperParam, LocalDatasetConf, TrainConf
 from ..dataset import create_mapping, LocalKRLDataset
 from ..negative_sampler import BernNegSampler
@@ -35,7 +35,7 @@ class TransRHyperParam(HyperParam):
     C: float
     
 
-class TransR(XTransEModel):
+class TransR(TransXBaseModel):
     def __init__(self,
                  ent_num: int,
                  rel_num: int,

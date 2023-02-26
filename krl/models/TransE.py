@@ -4,7 +4,7 @@ import torch.nn as nn
 from torch.utils.data import DataLoader
 import pytorch_lightning as pl
 
-from ..base_model import XTransEModel, ModelMain
+from ..base_model import TransXBaseModel, ModelMain, LitModelMain
 from ..config import TransHyperParam, TrainConf
 from ..dataset import KRLDatasetDict
 from ..negative_sampler import BernNegSampler
@@ -15,7 +15,7 @@ from ..evaluator import RankEvaluator
 from .. import storage
 from ..metric_fomatter import StringFormatter
 from ..serializer import FileSerializer
-from ..lit_model import XTransELitModel
+from ..lit_model import TransXLitModel
 
 
 class TransEHyperParam(TransHyperParam):
@@ -24,7 +24,7 @@ class TransEHyperParam(TransHyperParam):
     pass
 
 
-class TransE(XTransEModel):
+class TransE(TransXBaseModel):
     def __init__(self,
                  ent_num: int,
                  rel_num: int,
@@ -127,8 +127,8 @@ class TransEMain(ModelMain):
     
     def __call__(self):
         # create mapping
-        entity2id = self.datasets.entity2id
-        rel2id = self.datasets.rel2id
+        entity2id = self.datasets.meta.entity2id
+        rel2id = self.datasets.meta.rel2id
         ent_num = len(entity2id)
         rel_num = len(rel2id)
         
@@ -196,44 +196,41 @@ class TransEMain(ModelMain):
         serilizer.serialize(metric, metric_formatter)
 
 
-class TransELitMain(ModelMain):
+class TransELitMain(LitModelMain):
     def __init__(
         self,
         dataset: KRLDatasetDict,
         train_conf: TrainConf,
         hyper_params: TransEHyperParam,
-        device: torch.device
+        seed: int = None,
     ) -> None:
-        super().__init__()
-        self.datasets = dataset
-        self.dataset_conf = dataset.dataset_conf
-        self.train_conf = train_conf
+        super().__init__(
+            dataset,
+            train_conf,
+            seed
+        )
         self.params = hyper_params
-        self.device = device
     
     def __call__(self):
-        # create mapping
-        entity2id = self.datasets.entity2id
-        rel2id = self.datasets.rel2id
-        ent_num = len(entity2id)
-        rel_num = len(rel2id)
+        # seed everything
+        pl.seed_everything(self.seed)
         
-        # create dataset and dataloader
-        train_dataset = self.datasets.train
-        train_dataloader = DataLoader(train_dataset, self.params.batch_size)
-        valid_dataset = self.datasets.valid
-        valid_dataloader = DataLoader(valid_dataset, self.params.batch_size)
+        # create mapping
+        ent_num = len(self.datasets.meta.entity2id)
+        rel_num = len(self.datasets.meta.rel2id)
     
         # create negative-sampler
-        neg_sampler = BernNegSampler(train_dataset, self.device)
+        train_dataset = self.datasets.train
+        neg_sampler = BernNegSampler(train_dataset)
 
         # create model
         model = TransE(ent_num, rel_num, self.params)
-        model = model.to(self.device)
-        model = XTransELitModel(model, self.datasets, neg_sampler, self.params)
-        model = model.to(self.device)
+        model = TransXLitModel(model, self.datasets, neg_sampler, self.params)
         
         # create trainer
         trainer = pl.Trainer(max_epochs=self.params.epoch_size, gpus="0,")
-        trainer.fit(model=model, train_dataloader=train_dataloader, val_dataloaders=valid_dataloader)
+        trainer.fit(model=model)
+        
+        test_result = trainer.test(model)
+        print(test_result)
     

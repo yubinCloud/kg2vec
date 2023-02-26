@@ -11,7 +11,7 @@ import torch.nn.functional as F
 from torch.utils.data import DataLoader
 from pydantic import Field
 
-from ..base_model import XTransEModel, ModelMain
+from ..base_model import TransXBaseModel, ModelMain
 from ..config import TransHyperParam, LocalDatasetConf, TrainConf
 from ..dataset import create_mapping, LocalKRLDataset
 from ..negative_sampler import BernNegSampler
@@ -33,7 +33,7 @@ class TransHHyperParam(TransHyperParam):
     eps: float = Field(default=1e-3, description='the $\episilon$ in loss function')
 
 
-class TransH(XTransEModel):
+class TransH(TransXBaseModel):
     def __init__(
         self,
         ent_num: int,

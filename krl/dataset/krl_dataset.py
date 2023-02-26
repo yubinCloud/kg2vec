@@ -7,14 +7,14 @@ from torch.utils.data import Dataset
 from abc import ABC
 from pydantic import BaseModel
 
-from ..config import DatasetConf, LocalDatasetConf, BuiletinHuggingfaceDatasetConf
+from ..config import DatasetConf, LocalDatasetConf, BuiletinHuggingfaceDatasetConf, KRLDatasetMeta
 
 
 EntityMapping = Dict[str, int]
 RelMapping = Dict[str, int]
 Triple = List[int]
 
-def create_mapping(dataset_conf: DatasetConf) -> Tuple[EntityMapping, RelMapping]:
+def create_mapping(dataset_conf: DatasetConf) -> KRLDatasetMeta:
     """
     create mapping of `entity2id` and `relation2id`
     """
@@ -40,7 +40,10 @@ def create_mapping(dataset_conf: DatasetConf) -> Tuple[EntityMapping, RelMapping
             rel = rel.strip()
             rel_id = int(rel_id.strip())
             rel2id[rel] = rel_id
-    return entity2id, rel2id
+    return KRLDatasetMeta(
+        entity2id=entity2id,
+        rel2id=rel2id
+    )
 
 
 class KRLDataset(Dataset, ABC):
@@ -52,8 +55,7 @@ class KRLDataset(Dataset, ABC):
     def __init__(self,
                  dataset_conf: DatasetConf,
                  mode: Literal['train', 'valid', 'test'],
-                 entity2id: Mapping[str, int],
-                 rel2id: Mapping[str, int]) -> None:
+                 dataset_meta: KRLDatasetMeta) -> None:
         super().__init__()
         self.dataset_name = dataset_conf.dataset_name
         self.conf = dataset_conf
@@ -61,8 +63,7 @@ class KRLDataset(Dataset, ABC):
             raise ValueError(f'dataset mode not support:{mode} mode')
         self.mode = mode
         self.triples
-        self.entity2id = entity2id
-        self.rel2id = rel2id
+        self.meta = dataset_meta
 
 
 class LocalKRLDataset(Dataset):
@@ -72,16 +73,14 @@ class LocalKRLDataset(Dataset):
     def __init__(self,
                  dataset_conf: LocalDatasetConf,
                  mode: Literal['train', 'valid', 'test'],
-                 entity2id: Dict[str, int],
-                 rel2id: Dict[str, int]) -> None:
+                 dataset_meta: KRLDatasetMeta) -> None:
         super().__init__()
         self.conf = dataset_conf
         if mode not in {'train', 'valid', 'test'}:
             raise ValueError(f'dataset mode not support:{mode} mode')
         self.mode = mode
         self.triples = []
-        self.entity2id = entity2id
-        self.rel2id = rel2id
+        self.meta = dataset_meta
         self._read_triples()    # 读取数据集，并获得所有的 triples
     
     def _split_and_to_id(self, line: str) -> Triple:
@@ -91,9 +90,9 @@ class LocalKRLDataset(Dataset):
         :return: [head_id, rel_id, tail_id]
         """
         head, tail, rel = line.split()
-        head_id = self.entity2id[head.strip()]
-        rel_id = self.rel2id[rel.strip()]
-        tail_id = self.entity2id[tail.strip()]
+        head_id = self.meta.entity2id[head.strip()]
+        tail_id = self.meta.entity2id[tail.strip()]
+        rel_id = self.meta.rel2id[rel.strip()]
         return (head_id, rel_id, tail_id)
     
     def _read_triples(self):
@@ -123,12 +122,11 @@ class BuiletinHuggingfaceDataset(KRLDataset):
         self,
         dataset_conf: BuiletinHuggingfaceDatasetConf,
         mode: Literal['train', 'valid', 'test'],
-        entity2id: Mapping[str, int],
-        rel2id: Mapping[str, int],
+        dataset_mata: KRLDatasetMeta,
         triples: List[Tuple[int, int, int]],
     ) -> None:
         self.triples = triples
-        super().__init__(dataset_conf, mode, entity2id, rel2id)
+        super().__init__(dataset_conf, mode, dataset_mata)
 
     def __len__(self):
         """Denotes the total number of samples."""
@@ -145,8 +143,7 @@ class KRLDatasetDict(BaseModel):
     valid: KRLDataset
     test: KRLDataset
     
-    entity2id: Mapping[str, int]
-    rel2id: Mapping[str, int]
+    meta: KRLDatasetMeta
     
     dataset_conf: DatasetConf
     

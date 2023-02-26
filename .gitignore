@@ -134,3 +134,4 @@ nohup.out
 
 # pytorch lightning
 lightning_logs/
+./test.ipynb

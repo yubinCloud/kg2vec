@@ -78,8 +78,7 @@ def train_transe(
         margin=margin,
         valid_freq=valid_freq
     )
-    device = utils.get_device()
     
-    main = TransELitMain(dataset_dict, train_conf, hyper_params, device)
+    main = TransELitMain(dataset_dict, train_conf, hyper_params)
     
     main()

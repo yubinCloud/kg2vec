@@ -10,9 +10,8 @@ from .dataset import KRLDataset
 
 
 class NegativeSampler(ABC):
-    def __init__(self, dataset: KRLDataset, device: torch.device):
+    def __init__(self, dataset: KRLDataset):
         self.dataset = dataset
-        self.device = device
     
     @abstractmethod
     def neg_sample(self, heads, rels, tails):
@@ -29,13 +28,14 @@ class RandomNegativeSampler(NegativeSampler):
     """
     随机替换 head 或者 tail 来实现采样
     """
-    def __init__(self, dataset: KRLDataset, device: torch.device):
-        super().__init__(dataset, device)
+    def __init__(self, dataset: KRLDataset):
+        super().__init__(dataset)
         
     def neg_sample(self, heads, rels, tails):
+        device = heads.device
         ent_num = len(self.dataset.entity2id)
-        head_or_tail = torch.randint(high=2, size=heads.size(), device=self.device)
-        random_entities = torch.randint(high=ent_num, size=heads.size(), device=self.device)
+        head_or_tail = torch.randint(high=2, size=heads.size(), device=device)
+        random_entities = torch.randint(high=ent_num, size=heads.size(), device=device)
         corupted_heads = torch.where(head_or_tail == 1, random_entities, heads)
         corupted_tails = torch.where(head_or_tail == 0, random_entities, tails)
         return torch.stack([corupted_heads, rels, corupted_tails], dim=1)
@@ -47,16 +47,15 @@ class BernNegSampler(NegativeSampler):
     Specific sample process can refer to TransH paper or this implementation.
     """
     def __init__(self,
-                 dataset: KRLDataset,
-                 device: torch.device):
+                 dataset: KRLDataset):
         """init function
 
         :param dataset: KRLDataset for negative sample
         :param device: device
         """
-        super().__init__(dataset, device)
-        self.entity2id = dataset.entity2id
-        self.rel2id = dataset.rel2id
+        super().__init__(dataset)
+        self.entity2id = dataset.meta.entity2id
+        self.rel2id = dataset.meta.rel2id
         self.ent_num = len(self.entity2id)
         self.rel_num = len(self.rel2id)
 
@@ -65,8 +64,8 @@ class BernNegSampler(NegativeSampler):
         
     def _cal_tph_and_hpt(self):
         dataloder = DataLoader(self.dataset, batch_size=1)
-        r_h_matrix = torch.zeros([self.rel_num, self.ent_num], device=self.device)  # [i, j] 表示 r_i 与 h_j 有多少种尾实体
-        r_t_matrxi = torch.zeros([self.rel_num, self.ent_num], device=self.device)  # [i, j] 表示 r_i 与 t_j 有多少种头实体
+        r_h_matrix = torch.zeros([self.rel_num, self.ent_num])  # [i, j] 表示 r_i 与 h_j 有多少种尾实体
+        r_t_matrxi = torch.zeros([self.rel_num, self.ent_num])  # [i, j] 表示 r_i 与 t_j 有多少种头实体
         for batch in iter(dataloder):
             h, r, t = batch[0], batch[1], batch[2]
             h = h.item()
@@ -85,9 +84,9 @@ class BernNegSampler(NegativeSampler):
     def neg_sample(self, heads, rels, tails):
         device = heads.device
         batch_size = heads.shape[0]
-        rands = torch.rand([batch_size], device=device)
-        probs = self.probs_of_replace_head[rels]
-        head_or_tail = rands < probs  # True 的代表选择 head， False 的代表选择 tail
+        rands = torch.rand([batch_size])
+        probs = self.probs_of_replace_head[rels.cpu()]
+        head_or_tail = (rands < probs).to(device)  # True 的代表选择 head， False 的代表选择 tail
         random_entities = torch.randint(high=self.ent_num, size=heads.size(), device=device)
         corupted_heads = torch.where(head_or_tail == True, random_entities, heads)
         corupted_tails = torch.where(head_or_tail == False, random_entities, tails)

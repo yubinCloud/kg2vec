@@ -35,7 +35,7 @@ class RankMetric(KRLMetricBase):
 class MRR(torchmetrics.Metric):
     def __init__(self) -> None:
         super().__init__()
-        self.add_state("mrr_sum", default=torch.tensor(0), dist_reduce_fx="sum")
+        self.add_state("mrr_sum", default=torch.tensor(0.0), dist_reduce_fx="sum")
         self.add_state("example_cnt", default=torch.tensor(0), dist_reduce_fx="sum")
     
     def _cal_mrr(self, predictions: torch.Tensor, ground_truth_idx: torch.Tensor) -> float:
@@ -94,5 +94,5 @@ class HitsAtK(torchmetrics.Metric):
         self.hits_sum += self._cal_hits_at_k(preds, target)
         self.example_cnt += preds.size(0)
     
-    def compute(self):
+    def compute(self) -> float:
         return self.hits_sum.float() / self.example_cnt * 100

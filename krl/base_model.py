@@ -6,6 +6,9 @@ import torch.nn as nn
 import torch
 from abc import ABC, abstractmethod
 
+from .dataset import KRLDatasetDict
+from .config import TrainConf, HyperParam
+
 
 class KRLModel(nn.Module, ABC):
     def __init__(self):
@@ -42,7 +45,7 @@ class KRLModel(nn.Module, ABC):
         pass
 
 
-class XTransEModel(KRLModel):
+class TransXBaseModel(KRLModel):
     pass
 
 
@@ -52,6 +55,25 @@ class ModelMain(ABC):
     def __init__(self) -> None:
         super().__init__()
     
+    @abstractmethod
+    def __call__(self):
+        pass
+
+
+class LitModelMain(ModelMain):
+    def __init__(
+        self,
+        dataset: KRLDatasetDict,
+        train_conf: TrainConf,
+        seed: int = None,
+    ) -> None:
+        super().__init__()
+        self.datasets = dataset
+        self.dataset_conf = dataset.dataset_conf
+        self.train_conf = train_conf
+        self.seed = seed
+        self.params = None
+
     @abstractmethod
     def __call__(self):
         pass

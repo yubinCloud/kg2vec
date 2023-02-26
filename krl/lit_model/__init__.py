@@ -1,1 +1,1 @@
-from .XTransELitModel import XTransELitModel
+from .TransXLitModel import TransXLitModel
