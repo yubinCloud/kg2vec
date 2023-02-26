@@ -1,0 +1,42 @@
+{
+    "fb15k": {
+        "name": "FB15k",
+        "repo": "VLyb/FB15k"
+    },
+    "wn18": {
+        "name": "WN18",
+        "repo": "VLyb/WN18"
+    },
+    "fb15k-237": {
+        "name": "FB15k-237",
+        "repo": "VLyb/FB15k-237"
+    },
+    "wn18rr": {
+        "name": "WN18RR",
+        "repo": "VLyb/WN18RR"
+    },
+    "yago3-10": {
+        "name": "YAGO3-10",
+        "repo": "VLyb/YAGO3-10"
+    },
+    "nations": {
+        "name": "Nations",
+        "repo": "VLyb/Nations"
+    },
+    "dbpedia50": {
+        "name": "DBpedia50",
+        "repo": "VLyb/DBpedia50"
+    },
+    "dbpedia500": {
+        "name": "DBpedia500",
+        "repo": "VLyb/DBpedia500"
+    },
+    "kinship": {
+        "name": "Kinship",
+        "repo": "VLyb/Kinship"
+    },
+    "umls": {
+        "name": "UMLS",
+        "repo": "VLyb/UMLS"
+    }
+}
