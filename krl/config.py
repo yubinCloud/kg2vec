@@ -62,6 +62,9 @@ class HyperParam(BaseModel, ABC):
     optimizer: str = Field(defualt='adam', title='optimizer name')
     epoch_size: int = 500
     valid_freq: int = Field(defualt=5, title='训练过程中，每隔多少次就做一次 valid 来验证是否保存模型')
+    num_works: int = Field(default=64, title='`num_works` in dataloader')
+    early_stoping_patience: int = Field(default=5, title='the patience of EarlyStoping')
+    
 
 
 ######## Training config ########
@@ -71,8 +74,7 @@ class TrainConf(BaseModel):
     """
     训练的一些配置
     """
-    checkpoint_path: str = Field(title='保存模型的路径')
-    metric_result_path: str = Field(title='运行 test 的 metric 输出位置')
+    logs_dir: Path = Field(title='The directory used to keep the log.')
 
 
 ######## Other HyperParam class for various models  ##########

@@ -1,21 +1,17 @@
 
 import torch
 import torch.nn as nn
-from torch.utils.data import DataLoader
-import pytorch_lightning as pl
+import lightning.pytorch as pl
+from lightning.pytorch.loggers import CSVLogger
+from lightning.pytorch.callbacks import EarlyStopping
+from datetime import datetime
 
-from ..base_model import TransXBaseModel, ModelMain, LitModelMain
+from ..base_model import TransXBaseModel, LitModelMain
 from ..config import TransHyperParam, TrainConf
 from ..dataset import KRLDatasetDict
 from ..negative_sampler import BernNegSampler
-from .. import utils
-from ..trainer import TransETrainer
-from ..metric import MetricEnum
-from ..evaluator import RankEvaluator
-from .. import storage
-from ..metric_fomatter import StringFormatter
-from ..serializer import FileSerializer
 from ..lit_model import TransXLitModel
+from .. import utils
 
 
 class TransEHyperParam(TransHyperParam):
@@ -76,7 +72,7 @@ class TransE(TransXBaseModel):
         h_embs, r_embs, t_embs = self.embed(triples)
         return self.dist_fn(h_embs + r_embs, t_embs)
         
-    def loss(self, pos_distances, neg_distances):
+    def loss(self, pos_distances: torch.Tensor, neg_distances: torch.Tensor):
         """Calculate the loss
 
         :param pos_distances: [batch, ]
@@ -110,92 +106,6 @@ class TransE(TransXBaseModel):
         return self._distance(triples)
 
 
-class TransEMain(ModelMain):
-    def __init__(
-        self,
-        dataset: KRLDatasetDict,
-        train_conf: TrainConf,
-        hyper_params: TransEHyperParam,
-        device: torch.device
-    ) -> None:
-        super().__init__()
-        self.datasets = dataset
-        self.dataset_conf = dataset.dataset_conf
-        self.train_conf = train_conf
-        self.params = hyper_params
-        self.device = device
-    
-    def __call__(self):
-        # create mapping
-        entity2id = self.datasets.meta.entity2id
-        rel2id = self.datasets.meta.rel2id
-        ent_num = len(entity2id)
-        rel_num = len(rel2id)
-        
-        # create dataset and dataloader
-        train_dataset = self.datasets.train
-        train_dataloader = DataLoader(train_dataset, self.params.batch_size)
-        valid_dataset = self.datasets.valid
-        valid_dataloader = DataLoader(valid_dataset, self.params.batch_size)
-    
-        # create negative-sampler
-        neg_sampler = BernNegSampler(train_dataset, self.device)
-
-        # create model
-        model = TransE(ent_num, rel_num, self.device, self.params)
-        model = model.to(self.device)
-        
-        # create optimizer
-        optimizer = utils.create_optimizer(self.params.optimizer, model, self.params.learning_rate)
-    
-        # create trainer
-        trainer = TransETrainer(
-            model=model,
-            train_conf=self.train_conf,
-            params=self.params,
-            dataset_conf=self.dataset_conf,
-            entity2id=entity2id,
-            rel2id=rel2id,
-            device=self.device,
-            train_dataloder=train_dataloader,
-            valid_dataloder=valid_dataloader,
-            train_neg_sampler=neg_sampler,
-            valid_neg_sampler=neg_sampler,
-            optimzer=optimizer
-        )
-    
-        # training process
-        trainer.run_training()
-    
-        # create evaluator
-        metrics = [
-            MetricEnum.MRR,
-            MetricEnum.HITS_AT_1,
-            MetricEnum.HITS_AT_3,
-            MetricEnum.HITS_AT_10
-        ]
-        evaluator = RankEvaluator(self.device, metrics)
-    
-        # Testing the best checkpoint on test dataset
-        # load best model
-        ckpt = storage.load_checkpoint(self.train_conf)
-        model.load_state_dict(ckpt.model_state_dict)
-        model = model.to(self.device)
-        # create test-dataset
-        test_dataset = self.datasets.test
-        test_dataloder = DataLoader(test_dataset, self.params.valid_batch_size)
-        # run inference on test-dataset
-        metric = trainer.run_inference(test_dataloder, ent_num, evaluator)
-    
-        # choice metric formatter
-        metric_formatter = StringFormatter()
-    
-        # choice the way of serialize
-        serilizer = FileSerializer(self.train_conf, self.dataset_conf)
-        # serialize the metric
-        serilizer.serialize(metric, metric_formatter)
-
-
 class TransELitMain(LitModelMain):
     def __init__(
         self,
@@ -225,12 +135,18 @@ class TransELitMain(LitModelMain):
 
         # create model
         model = TransE(ent_num, rel_num, self.params)
-        model = TransXLitModel(model, self.datasets, neg_sampler, self.params)
+        model_wrapped = TransXLitModel(model, self.datasets, neg_sampler, self.params)
         
+        # callbacks
+        early_stopping = EarlyStopping('val_hits@10', mode="max", patience=self.params.early_stoping_patience, check_on_train_epoch_end=False)
+
         # create trainer
-        trainer = pl.Trainer(max_epochs=self.params.epoch_size, gpus="0,")
-        trainer.fit(model=model)
+        trainer = pl.Trainer(
+            gpus="0,",
+            max_epochs=self.params.epoch_size,
+            logger=CSVLogger(self.train_conf.logs_dir, name=f'{model.__class__.__name__}-{self.dataset_conf.dataset_name}'),
+            callbacks=[early_stopping]
+        )
+        trainer.fit(model=model_wrapped)
         
-        test_result = trainer.test(model)
-        print(test_result)
-    
+        trainer.test(model_wrapped)

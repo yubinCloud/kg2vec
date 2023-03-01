@@ -15,6 +15,8 @@ The overview structure of this library is below:
 
 ## How to use it?
 
+Don't use it now! The document has not been updated. I will write it soon.
+
 If you just want to use the models directly, then **you just need to run the sample scripts located in the directory** `./examples` and all you need to do is change a few parameters that you want to change. The call to the training code has been wrapped through [Typer](https://typer.tiangolo.com/), which is a great tool for building CLIs. So we can call the training code by CLIs. The examples can be found in the directory `./examples`.
 
 Example:

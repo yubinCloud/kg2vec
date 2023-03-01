@@ -1,4 +1,4 @@
-import pytorch_lightning as pl
+import lightning.pytorch as pl
 import torch
 from torch.utils.data import DataLoader
 from typing import List, Any
@@ -50,7 +50,7 @@ class TransXLitModel(pl.LightningModule):
     def validation_epoch_end(self, outputs: List[Any]) -> None:
         val_hits_at_10 = self.val_hits10.compute()
         self.val_hits10.reset()
-        self.log('val_hits_at_10', val_hits_at_10)
+        self.log('val_hits@10', val_hits_at_10)
     
     def test_step(self, batch: List[torch.Tensor], batch_idx: torch.Tensor):
         preds, target = self._get_preds_and_target(batch)
@@ -83,19 +83,22 @@ class TransXLitModel(pl.LightningModule):
     def train_dataloader(self) -> DataLoader:
         return DataLoader(
             self.dataset_dict.train,
-            batch_size=self.params.batch_size
+            batch_size=self.params.batch_size,
+            num_workers=64
         )
     
     def val_dataloader(self) -> DataLoader:
         return DataLoader(
             self.dataset_dict.valid,
-            batch_size=self.params.valid_batch_size
+            batch_size=self.params.valid_batch_size,
+            num_workers=64
         )
     
     def test_dataloader(self) -> DataLoader:
         return DataLoader(
             self.dataset_dict.test,
-            batch_size=self.params.valid_batch_size
+            batch_size=self.params.valid_batch_size,
+            num_workers=64
         )
         
     

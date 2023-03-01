@@ -4,7 +4,6 @@ The sampler used to obtain negative samples for KRL.
 import torch
 from torch.utils.data import DataLoader
 from abc import ABC, abstractmethod
-from typing import Optional
 
 from .dataset import KRLDataset
 
